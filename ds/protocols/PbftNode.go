@@ -1,4 +1,4 @@
-package basic_pbft
+package protocols
 
 import (
 	"ds/network"
@@ -11,7 +11,7 @@ type opState struct {
 	phase int
 }
 
-type Node struct {
+type PbftNode struct {
 	id           int
 	name         string
 	isPrimary    bool
@@ -21,14 +21,14 @@ type Node struct {
 	network      network.Network
 }
 
-func (node Node) Initialize(id int, name string, isPrimary bool, net network.Network) {
+func (node PbftNode) Initialize(id int, name string, isPrimary bool, net network.Network) {
 	node.id = id
 	node.name = name
 	node.isPrimary = isPrimary
 	node.network = net
 }
 
-func (node Node) Propose(text string) {
+func (node PbftNode) Propose(text string) {
 	var seqNumber int = math.MinInt32
 	for n := range node.seqToTextMap {
 		if n > seqNumber {
@@ -50,7 +50,7 @@ func (node Node) Propose(text string) {
 	node.network.Broadcast(prePrepareMsg)
 }
 
-func (node Node) Run() {
+func (node PbftNode) Run() {
 	valid, recMsg := node.network.Receive(node.id)
 	for valid {
 		switch recMsg.Phase {
@@ -65,15 +65,15 @@ func (node Node) Run() {
 	// Next Step : Add check for whether committed is reached
 }
 
-func (node Node) ReadLog() []network.Message {
+func (node PbftNode) ReadLog() []network.Message {
 	return node.logs
 }
 
-func (node Node) ReadCommits() []string {
+func (node PbftNode) ReadCommits() []string {
 	return node.commits
 }
 
-func (node Node) processPrePrepare(msg network.Message) {
+func (node PbftNode) processPrePrepare(msg network.Message) {
 	val, ok := node.seqToTextMap[msg.Seq]
 	if ok && val.text != msg.Text {
 		return
@@ -94,11 +94,11 @@ func (node Node) processPrePrepare(msg network.Message) {
 	}
 }
 
-func (node Node) processPrepare(msg network.Message) {
+func (node PbftNode) processPrepare(msg network.Message) {
 	node.log(msg)
 }
 
-func (node Node) log(msg network.Message) {
+func (node PbftNode) log(msg network.Message) {
 	node.logs = append(node.logs, msg)
 }
 
