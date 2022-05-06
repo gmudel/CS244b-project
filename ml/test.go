@@ -33,13 +33,13 @@ func main() {
 	initializer.ManualSeed(1)
 
 	trainCmd := flag.NewFlagSet("train", flag.ExitOnError)
-	trainTar := trainCmd.String("data", "/Users/gabe/go/src/final_project/data/mnist_png/mnist_png_training_shuffled.tar.gz", "data tarball")
-	testTar := trainCmd.String("test", "/Users/gabe/go/src/final_project/data/mnist_png/mnist_png_testing_shuffled.tar.gz", "data tarball")
-	save := trainCmd.String("save", "/Users/gabe/go/src/final_project/ml/mnist_model.gob", "the model file")
+	trainTar := trainCmd.String("data", "./data/mnist_png/mnist_png_training_shuffled.tar.gz", "data tarball")
+	testTar := trainCmd.String("test", "./data/mnist_png/mnist_png_testing_shuffled.tar.gz", "data tarball")
+	save := trainCmd.String("save", "./ml/mnist_model.gob", "the model file")
 	epoch := trainCmd.Int("epoch", 5, "the number of epochs")
 
 	predictCmd := flag.NewFlagSet("predict", flag.ExitOnError)
-	load := predictCmd.String("load", "/Users/gabe/go/src/final_project/ml/mnist_model.gob", "the model file")
+	load := predictCmd.String("load", "./ml/mnist_model.gob", "the model file")
 
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: %s needs subcomamnd train or predict\n", os.Args[0])
