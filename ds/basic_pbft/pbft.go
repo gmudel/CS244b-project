@@ -18,6 +18,14 @@ type Node struct {
 	logs         []network.Message
 	commits      []string
 	seqToTextMap map[int]opState
+	network      network.Network
+}
+
+func (node Node) Initialize(id int, name string, isPrimary bool, net network.Network) {
+	node.id = id
+	node.name = name
+	node.isPrimary = isPrimary
+	node.network = net
 }
 
 func (node Node) Propose(text string) {
@@ -39,11 +47,11 @@ func (node Node) Propose(text string) {
 		text:  text,
 		phase: 2,
 	}
-	network.Broadcast(prePrepareMsg)
+	node.network.Broadcast(prePrepareMsg)
 }
 
 func (node Node) Run() {
-	valid, recMsg := network.Receive(node.id)
+	valid, recMsg := node.network.Receive(node.id)
 	for valid {
 		switch recMsg.Phase {
 		case 1: // Pre-prepare msg
@@ -52,7 +60,7 @@ func (node Node) Run() {
 			node.processPrepare(recMsg)
 		default:
 		}
-		valid, recMsg = network.Receive(node.id)
+		valid, recMsg = node.network.Receive(node.id)
 	}
 	// Next Step : Add check for whether committed is reached
 }
@@ -82,7 +90,7 @@ func (node Node) processPrePrepare(msg network.Message) {
 			text:  msg.Text,
 			phase: 2,
 		}
-		network.Broadcast(prepareMsg)
+		node.network.Broadcast(prepareMsg)
 	}
 }
 
@@ -99,8 +107,4 @@ func assert(assertion bool, errorText string) error {
 		return errors.New(errorText)
 	}
 	return nil
-}
-
-func Initialize(numNodes int) {
-	network.Initialize(numNodes)
 }
