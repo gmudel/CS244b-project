@@ -1,8 +1,8 @@
 package protocols
 
 import (
-	"ds/network"
 	"errors"
+	"flads/ds/network"
 	"math"
 )
 

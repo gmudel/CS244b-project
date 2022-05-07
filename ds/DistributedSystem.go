@@ -1,12 +1,17 @@
-package main
+package ds
 
 import (
-	"ds/network"
-	"ds/protocols"
+	"flads/ds/network"
+	"flads/ds/protocols"
+	"flads/ml"
 	"strconv"
 )
 
-func main() {
+type DistributedSystem struct {
+	ml ml.MLProcess
+}
+
+func (ds DistributedSystem) Run() {
 	numNodes := 4
 	var net network.Network = network.DumbNetwork{}
 	net.Initialize(numNodes)

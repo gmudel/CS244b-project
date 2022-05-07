@@ -1,4 +1,4 @@
-package federated
+package ml
 
 import (
 	"fmt"
@@ -18,6 +18,10 @@ type NN struct {
 
 	w1 *mat.Dense
 	w2 *mat.Dense
+}
+
+func createRandomArray(i int) {
+	panic("unimplemented")
 }
 
 // https://github.com/aleksficek/Go-Neural-Network/blob/master/neural_net.go

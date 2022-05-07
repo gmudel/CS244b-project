@@ -1,4 +1,4 @@
-package main
+package ml
 
 import (
 	"encoding/gob"
