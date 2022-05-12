@@ -1,8 +1,19 @@
 package main
 
-import "flads/ds"
+import (
+	"flads/ds"
+	"flads/ds/network"
+	"flads/ml"
+)
 
 func main() {
-	x := ds.DistributedSystem{}
+	mlp := &ml.DumbMLProcess{}
+	net := &network.DumbNetwork{}
+	x := &ds.DistributedSystem{}
+	x.Initialize(
+		4,
+		mlp,
+		net,
+	)
 	x.Run()
 }

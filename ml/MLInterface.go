@@ -1,10 +1,9 @@
 package ml
 
-type Gradients struct {
-	gradients []float32
-}
+type Gradients int
 
 type MLProcess interface {
+	Initialize()
 	GetGradients() (ready bool, grads Gradients)
 	UpdateModel(grads Gradients)
 }
