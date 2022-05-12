@@ -1,4 +1,4 @@
-package main
+package ml
 
 import (
 	"encoding/gob"
@@ -19,7 +19,58 @@ import (
 	"gocv.io/x/gocv"
 )
 
+const LR = .01
+
 var device torch.Device
+var gw GradientWrapper
+
+// func listenForGradRequest() {
+
+// }
+
+func GetGradients() (ready bool, grads []MLPGrads) {
+	// flush gradient buffer
+	gw.lock.Lock()
+	defer gw.lock.Unlock()
+
+	if len(gw.gradBuffer) != 0 {
+		gradBufferCopy := make([]MLPGrads, len(gw.gradBuffer))
+		copy(gradBufferCopy, gw.gradBuffer)
+
+		gw.gradBuffer = nil
+		return true, gradBufferCopy
+	} else {
+		return false, nil
+	}
+}
+
+func addGradients(net *models.MLPModule) {
+	gw.lock.Lock()
+	defer gw.lock.Unlock()
+	mlpgrads := MLPGrads{net.FC1.Weight.Grad(), net.FC2.Weight.Grad(), net.FC3.Weight.Grad(), net.FC1.Bias.Grad(), net.FC2.Bias.Grad(), net.FC3.Bias.Grad()}
+	gw.gradBuffer = append(gw.gradBuffer, mlpgrads)
+}
+
+func UpdateModel(net *models.MLPModule, incomingGrads []MLPGrads) {
+	gw.lock.Lock()
+	defer gw.lock.Unlock()
+
+	for _, mlpgrad := range incomingGrads {
+		newW1 := torch.Sub(net.FC1.Weight, mlpgrad.W1, LR)
+		newW2 := torch.Sub(net.FC2.Weight, mlpgrad.W2, LR)
+		newW3 := torch.Sub(net.FC3.Weight, mlpgrad.W3, LR)
+		net.FC1.Weight.SetData(newW1)
+		net.FC2.Weight.SetData(newW2)
+		net.FC3.Weight.SetData(newW3)
+
+		newB1 := torch.Sub(net.FC1.Bias, mlpgrad.B1, LR)
+		newB2 := torch.Sub(net.FC2.Bias, mlpgrad.B2, LR)
+		newB3 := torch.Sub(net.FC3.Bias, mlpgrad.B3, LR)
+		net.FC1.Bias.SetData(newB1)
+		net.FC2.Bias.SetData(newB2)
+		net.FC3.Bias.SetData(newB3)
+	}
+}
 
 func main() {
 	if torch.IsCUDAAvailable() {
@@ -48,23 +99,24 @@ func main() {
 
 	switch os.Args[1] {
 	case "train":
+		net := models.MLP()
+		net.To(device)
+		opt := torch.SGD(LR, 0, 0, 0, false)
+		opt.AddParameters(net.Parameters())
+
 		trainCmd.Parse(os.Args[2:])
-		train(*trainTar, *testTar, *epoch, *save)
+		train(net, opt, *trainTar, *testTar, *epoch, *save)
 	case "predict":
 		predictCmd.Parse(os.Args[2:])
 		predict(*load, predictCmd.Args())
 	}
 }
 
-func train(trainFn, testFn string, epochs int, save string) {
+func train(net *models.MLPModule, opt torch.Optimizer, trainFn, testFn string, epochs int, save string) {
 	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainFn)
 	if e != nil {
 		panic(e)
 	}
-	net := models.MLP()
-	net.To(device)
-	opt := torch.SGD(0.01, 0.5, 0, 0, false)
-	opt.AddParameters(net.Parameters())
 	defer torch.FinishGC()
 
 	for epoch := 0; epoch < epochs; epoch++ {
@@ -81,8 +133,10 @@ func train(trainFn, testFn string, epochs int, save string) {
 			loss := F.NllLoss(pred, label.To(device, label.Dtype()), torch.Tensor{}, -100, "mean")
 			// fmt.Println(net.FC1.Weight.Grad())
 			loss.Backward()
-			// fmt.Println(net.FC1.Weight.Grad())
+			// fmt.Println(type(net.FC1.Weight.Grad()))
+			// fmt.Println(reflect.TypeOf(net.FC1.Weight.Grad()))
 			// TODO: Gradients for our layers are computed at this point. Send them.
+			addGradients(net)
 			opt.Step()
 			trainLoss = loss.Item().(float32)
 		}
