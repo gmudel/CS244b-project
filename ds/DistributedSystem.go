@@ -12,19 +12,26 @@ type DistributedSystem struct {
 	numNodes int
 	mlp      ml.MLProcess
 	net      network.Network
+	mode     int
 }
 
-func (dss *DistributedSystem) Initialize(numNodes int, mlp ml.MLProcess, net network.Network) {
+func (dss *DistributedSystem) Initialize(numNodes int, mlp ml.MLProcess, net network.Network, mode int) {
 	dss.numNodes = numNodes
 	dss.mlp = mlp
 	dss.net = net
+	dss.mode = mode
 }
 
 func (dss *DistributedSystem) Run() {
 	fmt.Println(dss.numNodes)
-	nodes := make([]*protocols.Algo1Node, dss.numNodes)
+	nodes := make([]protocols.Node, dss.numNodes)
+
 	for i := 0; i < dss.numNodes; i++ {
-		nodes[i] = &protocols.Algo1Node{}
+		if dss.mode == 1 {
+			nodes[i] = &protocols.Algo1Node{}
+		} else {
+			nodes[i] = &protocols.Algo2Node{}
+		}
 		nodes[i].Initialize(i, strconv.Itoa(i), dss.mlp, dss.net)
 	}
 

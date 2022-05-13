@@ -1,7 +1,7 @@
 package ml
 
 import (
-	"fmt"
+	"flads/util"
 	"math/rand"
 )
 
@@ -14,13 +14,13 @@ func (ml DumbMLProcess) Initialize() {
 }
 
 func (ml *DumbMLProcess) GetGradients() (bool, Gradients) {
-	fmt.Println("getting gradients")
+	util.Debug("getting gradients")
 	isReady := rand.Intn(2)
 	grads := rand.Intn(100)
 	return isReady == 1, Gradients(grads)
 }
 
 func (ml *DumbMLProcess) UpdateModel(grads Gradients) {
-	fmt.Println("updating model")
+	util.Debug("updating model")
 	ml.model = int(grads)
 }
