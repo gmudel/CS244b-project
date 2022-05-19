@@ -1,8 +1,6 @@
 package ml
 
 import (
-	"sync"
-
 	torch "github.com/wangkuiyi/gotorch"
 	"github.com/wangkuiyi/gotorch/vision/models"
 )
@@ -12,9 +10,8 @@ type MLPGrads struct {
 	B1, B2, B3 torch.Tensor
 }
 
-type GradientWrapper struct {
+type Gradients struct {
 	gradBuffer []MLPGrads
-	lock       *sync.Mutex
 }
 
 type MLProcess interface {
