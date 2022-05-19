@@ -56,7 +56,7 @@ func (model *SimpleNN) ZeroGrad() {
 
 	b3Shape := model.net.FC3.Bias.Grad().Shape()
 	model.net.FC3.Bias.Grad().SetData(torch.Full(b3Shape, 0, true))
-	fmt.Println("out ZeroGrad")
+	// fmt.Println("out ZeroGrad")
 }
 
 func (model *SimpleNN) gradStep(grads []MLPGrads) {
@@ -78,22 +78,16 @@ func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 		testLoader := MNISTLoader(testPath, vocab)
 		totalSamples := 0
 		for trainLoader.Scan() {
-			fmt.Println("getting data")
 			data, label := trainLoader.Minibatch()
 			totalSamples += int(data.Shape()[0])
-			fmt.Println("made loss")
 			pred := model.net.Forward(data.To(model.device, data.Dtype()))
-			fmt.Println("made loss")
 			loss := F.NllLoss(pred, label.To(model.device, label.Dtype()), torch.Tensor{}, -100, "mean")
-			// fmt.Println(net.FC1.Weight.Grad())
 			loss.Backward()
-			fmt.Println("loss back")
 
 			// fmt.Println(type(net.FC1.Weight.Grad()))
 			// fmt.Println(reflect.TypeOf(net.FC1.Weight.Grad()))
 			// TODO: Gradients for our layers are computed at this point. Send them.
 			model.addGradientsToBuffer()
-			fmt.Println("added to buffer")
 			localGrad := MLPGrads{
 				model.net.FC1.Weight.Grad(),
 				model.net.FC2.Weight.Grad(),
@@ -103,13 +97,10 @@ func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 				model.net.FC3.Bias.Grad(),
 			}
 			localGradSlice := []MLPGrads{localGrad}
-			model.gradStep(localGradSlice)
+			model.UpdateModel(localGradSlice)
 			trainLoss = loss.Item().(float32)
-			fmt.Println("naenae")
 			model.ZeroGrad()
-			// fmt.Println(trainLoader.Scan())
 		}
-		fmt.Println("naenae2")
 		throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 		log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
 		model.Test(testLoader)
