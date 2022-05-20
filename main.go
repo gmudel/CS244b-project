@@ -4,8 +4,8 @@ import (
 	"flads/ds"
 	"flads/ds/network"
 	"flads/ml"
+	"flads/util"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -56,7 +56,7 @@ func main() {
 	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
 	}
-	fmt.Println(curNodeId)
+	util.Log("hello")
 	mlp := makeModel()
 	networkTable := map[int]string{ // nodeId : ipAddr
 		0: "localhost:7003",
