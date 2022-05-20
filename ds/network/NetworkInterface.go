@@ -1,16 +1,21 @@
 package network
 
 type Message struct {
-	SendingNodeId, Seq, Phase int
 	Text                      string
 }
 
-type Network interface {
-	Initialize(numNodes int)
+// Network Interface
+type INetwork interface {
 
-	Send(recNodeId int, msg Message)
+    Initialize(port string, queue []Message, nodeIdTable map[int]string) error
 
-	Broadcast(msg Message)
+    ProcessMessage(msg Message) error
 
-	Receive(nodeId int) (valid bool, msg Message)
+    Send(recNodeId int, msg Message) error
+
+    Broadcast(msg Message) error
+
+    Multicast(nodeIds []int, msg Message) error
+
+    Receive() (Message, error)
 }
