@@ -98,8 +98,8 @@ func (node *ZabNode) processFollowerMessage(msg ZabMessage) {
 }
 
 func (node *ZabNode) applyGrads(allGrads []ml.Gradients) {
-	for grad := range allGrads {
-		node.ml.UpdateModel(ml.Gradients(grad))
+	for _, grad := range allGrads {
+		node.ml.UpdateModel(grad)
 	}
 }
 

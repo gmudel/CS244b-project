@@ -16,11 +16,11 @@ func (ml DumbMLProcess) Initialize() {
 func (ml *DumbMLProcess) GetGradients() (bool, Gradients) {
 	// util.Debug("getting gradients")
 	isReady := rand.Intn(2)
-	grads := rand.Intn(100)
+	grads := Gradients{}
 	return isReady == 1, Gradients(grads)
 }
 
 func (ml *DumbMLProcess) UpdateModel(grads Gradients) {
 	util.Debug("updating model")
-	ml.model = int(grads)
+	ml.model = ml.model + 1
 }

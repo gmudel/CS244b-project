@@ -2,7 +2,6 @@ package ml
 
 import (
 	torch "github.com/wangkuiyi/gotorch"
-	"github.com/wangkuiyi/gotorch/vision/models"
 )
 
 type MLPGrads struct {
@@ -15,6 +14,6 @@ type Gradients struct {
 }
 
 type MLProcess interface {
-	GetGradients() (ready bool, grads []MLPGrads)
-	UpdateModel(net *models.MLPModule, grads []MLPGrads)
+	GetGradients() (ready bool, gradients Gradients)
+	UpdateModel(incomingGradients Gradients)
 }

@@ -50,7 +50,7 @@ func (node *Algo2Node) Run() {
 		}
 		msg, received = node.net.Receive()
 	}
-	for grads := range allGrads {
-		node.ml.UpdateModel(ml.Gradients(grads))
+	for _, grads := range allGrads {
+		node.ml.UpdateModel(grads)
 	}
 }

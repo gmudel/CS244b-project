@@ -97,7 +97,7 @@ func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 				model.net.FC3.Bias.Grad(),
 			}
 			localGradSlice := []MLPGrads{localGrad}
-			model.UpdateModel(localGradSlice)
+			model.UpdateModel(Gradients{gradBuffer: localGradSlice})
 			trainLoss = loss.Item().(float32)
 			model.ZeroGrad()
 		}
@@ -108,7 +108,7 @@ func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 	saveModel(model.net, savePath)
 }
 
-func GetGradients(model *SimpleNN) (ready bool, grads []MLPGrads) {
+func (model *SimpleNN) GetGradients() (ready bool, gradients Gradients) {
 	// flush gradient buffer
 	model.lock.Lock()
 	defer model.lock.Unlock()
@@ -118,9 +118,9 @@ func GetGradients(model *SimpleNN) (ready bool, grads []MLPGrads) {
 		copy(gradBufferCopy, model.grads.gradBuffer)
 
 		model.grads.gradBuffer = nil
-		return true, gradBufferCopy
+		return true, Gradients{gradBuffer: gradBufferCopy}
 	} else {
-		return false, nil
+		return false, Gradients{}
 	}
 }
 
@@ -138,8 +138,9 @@ func (model *SimpleNN) addGradientsToBuffer() {
 	model.grads.gradBuffer = append(model.grads.gradBuffer, mlpgrads)
 }
 
-func (model *SimpleNN) UpdateModel(incomingGrads []MLPGrads) {
+func (model *SimpleNN) UpdateModel(incomingGradients Gradients) {
 	// Run SGD for each incoming grad
+	incomingGrads := incomingGradients.gradBuffer
 	model.lock.Lock()
 	defer model.lock.Unlock()
 
