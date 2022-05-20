@@ -2,6 +2,7 @@ package protocols
 
 import (
 	"encoding/json"
+	"errors"
 	"flads/ds/network"
 	"flads/ml"
 	"flads/util"
@@ -48,8 +49,8 @@ func (node *ZabNode) Run() {
 	}
 	util.Debug("here")
 
-	valid, msg := node.net.Receive(node.id)
-	for valid {
+	msg, received := node.net.Receive()
+	for received {
 		util.Debug("here")
 		var zabMsg ZabMessage
 		err := json.Unmarshal([]byte(msg.Text), &zabMsg)
@@ -60,7 +61,7 @@ func (node *ZabNode) Run() {
 				node.processFollowerMessage(zabMsg)
 			}
 		}
-		valid, msg = node.net.Receive(node.id)
+		msg, received = node.net.Receive()
 	}
 }
 
@@ -100,4 +101,11 @@ func (node *ZabNode) applyGrads(allGrads []ml.Gradients) {
 	for grad := range allGrads {
 		node.ml.UpdateModel(ml.Gradients(grad))
 	}
+}
+
+func assert(assertion bool, errorText string) error {
+	if !assertion {
+		return errors.New(errorText)
+	}
+	return nil
 }

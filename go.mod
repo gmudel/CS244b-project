@@ -1,6 +1,6 @@
-module final_project
+module flads
 
-go 1.16
+go 1.18
 
 require (
 	github.com/wangkuiyi/gotorch v0.0.0-20201028015551-9afed2f3ad7b

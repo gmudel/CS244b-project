@@ -41,14 +41,14 @@ func (node *Algo2Node) Run() {
 			})
 		}
 	}
-	valid, msg := node.net.Receive(node.id)
-	for valid {
+	msg, received := node.net.Receive()
+	for received {
 		var grads ml.Gradients
 		err := json.Unmarshal([]byte(msg.Text), &grads)
 		if err != nil {
 			allGrads = append(allGrads, grads)
 		}
-		valid, msg = node.net.Receive(node.id)
+		msg, received = node.net.Receive()
 	}
 	for grads := range allGrads {
 		node.ml.UpdateModel(ml.Gradients(grads))

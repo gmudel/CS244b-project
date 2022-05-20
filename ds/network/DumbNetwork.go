@@ -19,9 +19,7 @@ func (net *DumbNetwork) Send(recNodeId int, msg Message) {
 
 func (net *DumbNetwork) Broadcast(msg Message) {
 	for i := 0; i < net.numNodes; i++ {
-		if i != msg.SendingNodeId {
-			net.internalQueue[i] = append(net.internalQueue[i], msg)
-		}
+		net.internalQueue[i] = append(net.internalQueue[i], msg)
 	}
 }
 
