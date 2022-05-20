@@ -2,6 +2,8 @@ package util
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"os"
 )
 
@@ -13,10 +15,6 @@ func Debug[T any](s T) {
 	}
 }
 
-var f, err = os.Create("log.txt")
-
-func Log(s string) {
-
-	d1 := []byte(s)
-	f.Write(d1)
-}
+var file, err = os.Create("log.txt")
+var mw = io.MultiWriter(file)
+var Logger = log.New(mw, "LOG: ", 0)

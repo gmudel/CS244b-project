@@ -31,7 +31,7 @@ func makeModel() ml.MLProcess {
 	trainCmd := flag.NewFlagSet("train", flag.ExitOnError)
 	trainTar := trainCmd.String("data", "./data/mnist_png/mnist_png_training_shuffled.tar.gz", "data tarball")
 	testTar := trainCmd.String("test", "./data/mnist_png/mnist_png_testing_shuffled.tar.gz", "data tarball")
-	save := trainCmd.String("save", "/tmp/mnist_model.gob", "the model file")
+	save := trainCmd.String("save", "./ml/mnist_model.gob", "the model file")
 
 	// predictCmd := flag.NewFlagSet("predict", flag.ExitOnError)
 	// load := predictCmd.String("load", "/tmp/mnist_model.gob", "the model file")
@@ -51,13 +51,15 @@ func makeModel() ml.MLProcess {
 }
 
 func main() {
+
 	numNodes := 3
 	curNodeId, err := strconv.Atoi(os.Args[1])
 	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
 	}
-	util.Log("hello")
+
 	mlp := makeModel()
+	util.Logger.Println("made model and began training")
 	networkTable := map[int]string{ // nodeId : ipAddr
 		0: "localhost:7003",
 		1: "localhost:7004",
