@@ -14,7 +14,7 @@ func (ml DumbMLProcess) Initialize() {
 }
 
 func (ml *DumbMLProcess) GetGradients() (bool, Gradients) {
-	util.Debug("getting gradients")
+	// util.Debug("getting gradients")
 	isReady := rand.Intn(2)
 	grads := rand.Intn(100)
 	return isReady == 1, Gradients(grads)

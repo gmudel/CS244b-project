@@ -29,9 +29,12 @@ func (dss *DistributedSystem) Run() {
 	for i := 0; i < dss.numNodes; i++ {
 		if dss.mode == 1 {
 			nodes[i] = &protocols.Algo1Node{}
-		} else {
+		} else if dss.mode == 2 {
 			nodes[i] = &protocols.Algo2Node{}
+		} else {
+			nodes[i] = &protocols.ZabNode{}
 		}
+
 		nodes[i].Initialize(i, strconv.Itoa(i), dss.mlp, dss.net)
 	}
 

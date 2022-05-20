@@ -16,7 +16,7 @@ func main() {
 		numNodes,
 		mlp,
 		net,
-		2,
+		3,
 	)
 	x.Run()
 }
