@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flads/ds/network"
 	"flads/ml"
+	"flads/util"
+	"time"
 )
 
 type Algo2Message struct {
@@ -35,7 +37,9 @@ func (node *Algo2Node) Run() {
 			id:    node.id,
 			grads: grads,
 		})
-		if err != nil {
+		// util.Logger.Println(err)
+		if err == nil {
+			// util.Logger.Println("preparing msg")
 			node.net.Broadcast(network.Message{
 				Text: string(serializedMsg),
 			})
@@ -43,6 +47,9 @@ func (node *Algo2Node) Run() {
 	}
 	msg, received := node.net.Receive()
 	for received {
+		util.Logger.Println("msg.text")
+		util.Logger.Println(msg.Text)
+		time.Sleep(time.Second)
 		var grads ml.Gradients
 		err := json.Unmarshal([]byte(msg.Text), &grads)
 		if err != nil {

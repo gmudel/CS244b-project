@@ -15,6 +15,11 @@ func Debug[T any](s T) {
 	}
 }
 
-var file, err = os.Create("log.txt")
-var mw = io.MultiWriter(file)
-var Logger = log.New(mw, "LOG: ", 0)
+var Logger *log.Logger = log.Default()
+
+func InitLogger(nodeId int) {
+	file, _ := os.Create("log.txt")
+	mw := io.MultiWriter(file)
+	prefix := fmt.Sprintf("LOG %d: ", nodeId)
+	Logger = log.New(mw, prefix, 0)
+}

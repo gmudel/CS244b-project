@@ -52,8 +52,9 @@ func makeModel() ml.MLProcess {
 
 func main() {
 
-	numNodes := 3
+	numNodes := 2
 	curNodeId, err := strconv.Atoi(os.Args[1])
+	util.InitLogger(curNodeId)
 	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
 	}
@@ -63,7 +64,7 @@ func main() {
 	networkTable := map[int]string{ // nodeId : ipAddr
 		0: "localhost:7003",
 		1: "localhost:7004",
-		2: "localhost:7005",
+		// 2: "localhost:7005",
 	}
 
 	port := ":" + strings.Split(networkTable[curNodeId], ":")[1]
@@ -79,7 +80,7 @@ func main() {
 		numNodes,
 		mlp,
 		net,
-		1,
+		2,
 	)
 	x.Run()
 }
