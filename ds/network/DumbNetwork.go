@@ -1,31 +1,32 @@
 package network
 
-type DumbNetwork struct {
+type DumbNetwork[T any] struct {
 	numNodes      int
-	internalQueue [][]Message
+	internalQueue [][]T
 }
 
-func (net *DumbNetwork) Initialize(numNodes int) {
+func (net *DumbNetwork[T]) Initialize(numNodes int) {
 	net.numNodes = numNodes
-	net.internalQueue = make([][]Message, numNodes)
+	net.internalQueue = make([][]T, numNodes)
 	for i := 0; i < numNodes; i++ {
-		net.internalQueue[i] = make([]Message, 0)
+		net.internalQueue[i] = make([]T, 0)
 	}
 }
 
-func (net *DumbNetwork) Send(recNodeId int, msg Message) {
+func (net *DumbNetwork[T]) Send(recNodeId int, msg T) {
 	net.internalQueue[recNodeId] = append(net.internalQueue[recNodeId], msg)
 }
 
-func (net *DumbNetwork) Broadcast(msg Message) {
+func (net *DumbNetwork[T]) Broadcast(msg T) {
 	for i := 0; i < net.numNodes; i++ {
 		net.internalQueue[i] = append(net.internalQueue[i], msg)
 	}
 }
 
-func (net *DumbNetwork) Receive(nodeId int) (valid bool, msg Message) {
+func (net *DumbNetwork[T]) Receive(nodeId int) (valid bool, msg T) {
 	if len(net.internalQueue[nodeId]) == 0 {
-		return false, Message{}
+		var t T
+		return false, t
 	}
 	msg, net.internalQueue[nodeId] = net.internalQueue[nodeId][0], net.internalQueue[nodeId][1:]
 	return true, msg

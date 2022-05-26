@@ -1,25 +1,21 @@
 package network
 
-type Message struct {
-	Text string
-}
-
 // Network Interface
-type INetwork interface {
+type INetwork[T any] interface {
 	Initialize(nodeId int, port string,
-		queue []Message, nodeIdTable map[int]string)
+		queue []T, nodeIdTable map[int]string)
 
 	Listen() error
 
 	ListenOnPort(port string) error
 
-	Send(nodeId int, msg Message) error
+	Send(nodeId int, msg T) error
 
-	Broadcast(msg Message) error
+	Broadcast(msg T) error
 
-	ProcessMessage(msg Message) error
+	ProcessMessage(msg T) error
 
-	Multicast(nodeIds []int, msg Message) error
+	Multicast(nodeIds []int, msg T) error
 
-	Receive() (msg Message, ok bool)
+	Receive() (msg T, ok bool)
 }

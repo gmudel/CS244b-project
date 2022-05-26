@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-func TestPairwiseMessages() {
+func TestPairwiseMessages[T any]() {
 
 	networkTable := map[int]string{ // nodeId : ipAddr
 		0: "localhost:7003",
 		1: "localhost:7004",
 		2: "localhost:7005"}
 
-	var nodeTable map[int]*Network = createNodesFromTable(networkTable)
+	var nodeTable map[int]*Network[T] = createNodesFromTable[T](networkTable)
 
 	fmt.Println(nodeTable)
 
@@ -33,15 +33,15 @@ func TestPairwiseMessages() {
 	sendAllPairwiseMessages(nodeTable)
 }
 
-func createNodesFromTable(networkTable map[int]string) map[int]*Network {
+func createNodesFromTable[T any](networkTable map[int]string) map[int]*Network[T] {
 
-	nodeTable := make(map[int]*Network)
+	nodeTable := make(map[int]*Network[T])
 
 	for nodeId, address := range networkTable {
 		port := ":" + strings.Split(address, ":")[1]
 
-		newNode := Network{}
-		newNode.Initialize(nodeId, port, make([]Message, 0), networkTable)
+		newNode := Network[T]{}
+		newNode.Initialize(nodeId, port, make([]T, 0), networkTable)
 
 		nodeTable[nodeId] = &newNode
 	}
@@ -50,7 +50,7 @@ func createNodesFromTable(networkTable map[int]string) map[int]*Network {
 }
 
 // Synchronized -- test that messages are being passed across all edges
-func sendAllPairwiseMessages(nodeTable map[int]*Network) {
+func sendAllPairwiseMessages[T any](nodeTable map[int]*Network[T]) {
 
 	for srcId, srcNode := range nodeTable {
 		for dstId, dstNode := range nodeTable {
@@ -59,8 +59,8 @@ func sendAllPairwiseMessages(nodeTable map[int]*Network) {
 
 				fmt.Printf("Sending from %d to %d\n", srcId, dstId)
 
-				msgText := fmt.Sprintf("(node %d -> %d)", srcId, dstId)
-				msg := Message{msgText}
+				// msgText := fmt.Sprintf("(node %d -> %d)", srcId, dstId)
+				var msg T
 
 				srcNode.Send(dstId, msg)
 

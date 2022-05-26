@@ -5,15 +5,18 @@ import (
 	"flads/ml"
 )
 
+type Algo1Message struct {
+}
+
 type Algo1Node struct {
 	id            int
 	name          string
 	ml            ml.MLProcess
-	net           network.Network
+	net           network.Network[Algo1Message]
 	timeoutInSecs int
 }
 
-func (node *Algo1Node) Initialize(id int, name string, mlp ml.MLProcess, net network.Network) {
+func (node *Algo1Node) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[Algo1Message]) {
 	node.id = id
 	node.name = name
 	node.ml = mlp

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"flads/ds"
 	"flads/ds/network"
+	"flads/ds/protocols"
 	"flads/ml"
 	"flads/util"
 	"flag"
@@ -50,37 +50,63 @@ func makeModel() ml.MLProcess {
 	return model
 }
 
+func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int]string) network.Network[T] {
+	net := network.Network[T]{}
+	net.Initialize(curNodeId, port, make([]T, 0), networkTable)
+	err := net.Listen()
+	if err != nil {
+		panic("Network not able to listen")
+	}
+	return net
+}
+
 func main() {
 
 	numNodes := 2
 	curNodeId, err := strconv.Atoi(os.Args[1])
+	dssMode := 2
 	util.InitLogger(curNodeId)
 	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
 	}
 
-	mlp := makeModel()
-	util.Logger.Println("made model and began training")
 	networkTable := map[int]string{ // nodeId : ipAddr
 		0: "localhost:7003",
 		1: "localhost:7004",
 		// 2: "localhost:7005",
 	}
 
+	mlp := makeModel()
+	util.Logger.Println("made model and began training")
+
 	port := ":" + strings.Split(networkTable[curNodeId], ":")[1]
-	net := network.Network{}
-	net.Initialize(curNodeId, port, make([]network.Message, 0), networkTable)
-	err = net.Listen()
-	if err != nil {
-		panic("Network not able to listen")
+
+	if dssMode == 1 {
+		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable)
+		nodes := make([]protocols.Node[protocols.Algo1Message], numNodes)
+		for i := 0; i < numNodes; i++ {
+			nodes[i] = &protocols.Algo1Node{}
+			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net)
+		}
+		for {
+			for i := 0; i < numNodes; i++ {
+				nodes[i].Run()
+			}
+		}
+	} else if dssMode == 2 {
+		if dssMode == 1 {
+			net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
+			nodes := make([]protocols.Node[protocols.Algo2Message], numNodes)
+			for i := 0; i < numNodes; i++ {
+				nodes[i] = &protocols.Algo2Node{}
+				nodes[i].Initialize(i, strconv.Itoa(i), mlp, net)
+			}
+			for {
+				for i := 0; i < numNodes; i++ {
+					nodes[i].Run()
+				}
+			}
+		}
 	}
 
-	x := &ds.DistributedSystem{}
-	x.Initialize(
-		numNodes,
-		mlp,
-		net,
-		2,
-	)
-	x.Run()
 }

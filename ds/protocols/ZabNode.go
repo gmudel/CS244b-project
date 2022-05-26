@@ -1,7 +1,6 @@
 package protocols
 
 import (
-	"encoding/json"
 	"errors"
 	"flads/ds/network"
 	"flads/ml"
@@ -21,11 +20,11 @@ type ZabNode struct {
 	leaderId      int
 	leaderGrads   []ml.Gradients
 	ml            ml.MLProcess
-	net           network.Network
+	net           network.Network[ZabMessage]
 	timeoutInSecs int
 }
 
-func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net network.Network) {
+func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[ZabMessage]) {
 	node.id = id
 	node.name = name
 	node.leaderId = 0
@@ -36,32 +35,25 @@ func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net netwo
 
 func (node *ZabNode) Run() {
 	if ready, grads := node.ml.GetGradients(); ready {
-		serializedMsg, err := json.Marshal(ZabMessage{
+		err := node.net.Send(node.leaderId, ZabMessage{
 			id:      node.id,
 			msgType: 1,
 			myGrads: grads,
 		})
 		if err != nil {
-			node.net.Send(node.leaderId, network.Message{
-				Text: string(serializedMsg),
-			})
+			util.Logger.Println("Msg send failed")
 		}
 	}
 	util.Debug("here")
 
-	msg, received := node.net.Receive()
+	zabMsg, received := node.net.Receive()
 	for received {
-		util.Debug("here")
-		var zabMsg ZabMessage
-		err := json.Unmarshal([]byte(msg.Text), &zabMsg)
-		if err != nil {
-			if zabMsg.msgType == 1 {
-				node.processLeaderMessage(zabMsg)
-			} else {
-				node.processFollowerMessage(zabMsg)
-			}
+		if zabMsg.msgType == 1 {
+			node.processLeaderMessage(zabMsg)
+		} else {
+			node.processFollowerMessage(zabMsg)
 		}
-		msg, received = node.net.Receive()
+		zabMsg, received = node.net.Receive()
 	}
 }
 
@@ -76,16 +68,14 @@ func (node *ZabNode) processLeaderMessage(msg ZabMessage) {
 	node.leaderGrads = append(node.leaderGrads, msg.myGrads)
 	node.applyGrads(node.leaderGrads)
 	if len(node.leaderGrads) > 10 {
-		serializedMsg, err := json.Marshal(ZabMessage{
+		node.leaderGrads = make([]ml.Gradients, 0)
+		err := node.net.Broadcast(ZabMessage{
 			id:       node.id,
 			msgType:  2,
 			allGrads: node.leaderGrads,
 		})
-		node.leaderGrads = make([]ml.Gradients, 0)
 		if err != nil {
-			node.net.Broadcast(network.Message{
-				Text: string(serializedMsg),
-			})
+			util.Logger.Println("Broadcast failed")
 		}
 	}
 
