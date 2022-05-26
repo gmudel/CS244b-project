@@ -3,7 +3,7 @@ package network
 import "encoding/gob"
 
 // Network Interface
-type INetwork[T any] interface {
+type Network[T any] interface {
 	Initialize(nodeId int, port string,
 		queue []T, nodeIdTable map[int]string)
 
@@ -14,8 +14,6 @@ type INetwork[T any] interface {
 	Send(nodeId int, msg T) error
 
 	Broadcast(msg T) error
-
-	ProcessMessage(msg T) error
 
 	Multicast(nodeIds []int, msg T) error
 

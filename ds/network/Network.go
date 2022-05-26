@@ -17,7 +17,7 @@ import (
 )
 
 // Network Type
-type Network[T any] struct {
+type NetworkClass[T any] struct {
 	nodeId int
 	port   string
 	queue  []T
@@ -25,7 +25,7 @@ type Network[T any] struct {
 	nodeIdTable map[int]string
 }
 
-func (network *Network[T]) Initialize(nodeId int, port string,
+func (network *NetworkClass[T]) Initialize(nodeId int, port string,
 	queue []T, nodeIdTable map[int]string) {
 
 	network.nodeId = nodeId
@@ -36,11 +36,11 @@ func (network *Network[T]) Initialize(nodeId int, port string,
 }
 
 // Create node and listen on port
-func (network *Network[T]) Listen() error {
+func (network *NetworkClass[T]) Listen() error {
 	return network.ListenOnPort(network.port)
 }
 
-func (network *Network[T]) ListenOnPort(port string) error {
+func (network *NetworkClass[T]) ListenOnPort(port string) error {
 
 	// Listen on port
 	listener, err := net.Listen("tcp", port)
@@ -54,7 +54,7 @@ func (network *Network[T]) ListenOnPort(port string) error {
 
 }
 
-func (network *Network[T]) listenForever(listener net.Listener) {
+func (network *NetworkClass[T]) listenForever(listener net.Listener) {
 
 	// Handle incoming connections concurrently
 	for {
@@ -73,7 +73,7 @@ func (network *Network[T]) listenForever(listener net.Listener) {
 
 // Creates TCP connection to the address mapped to, encodes the
 //   message, then closes the connection
-func (network *Network[T]) Send(nodeId int, msg T) error {
+func (network *NetworkClass[T]) Send(nodeId int, msg T) error {
 
 	// Get address of target node
 	address, ok := network.nodeIdTable[nodeId]
@@ -97,7 +97,7 @@ func (network *Network[T]) Send(nodeId int, msg T) error {
 
 // Unoptimized broadcast -- simple calls send for every node in the
 //   nodeIdTable
-func (network *Network[T]) Broadcast(msg T) error {
+func (network *NetworkClass[T]) Broadcast(msg T) error {
 
 	var err error
 	for nodeId, _ := range network.nodeIdTable {
@@ -111,7 +111,7 @@ func (network *Network[T]) Broadcast(msg T) error {
 	return err
 }
 
-func (network *Network[T]) Multicast(nodeIds []int, msg T) error {
+func (network *NetworkClass[T]) Multicast(nodeIds []int, msg T) error {
 
 	var err error
 	for _, nodeId := range nodeIds {
@@ -124,7 +124,7 @@ func (network *Network[T]) Multicast(nodeIds []int, msg T) error {
 	return err
 }
 
-func (network *Network[T]) Receive() (msg T, ok bool) {
+func (network *NetworkClass[T]) Receive() (msg T, ok bool) {
 
 	// fmt.Println(network.nodeId, "Receive, ", network.queue)
 
@@ -144,7 +144,7 @@ func (network *Network[T]) Receive() (msg T, ok bool) {
 // handleConnection adds the msg to queue and closes the connection
 //   The network class does not check that the message is well-formed,
 //   and will add it to the queue for downstream processing
-func (network *Network[T]) handleConnection(conn net.Conn) error {
+func (network *NetworkClass[T]) handleConnection(conn net.Conn) error {
 
 	decoder := gob.NewDecoder(conn)
 	var msg T
