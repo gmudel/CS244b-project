@@ -33,8 +33,8 @@ func (node *Algo2Node) Run() {
 	if ready, grads := node.ml.GetGradients(); ready {
 		allGrads = append(allGrads, grads)
 		err := node.net.Broadcast(Algo2Message{
-			Id: node.id,
-			// Grads: grads,
+			Id:    node.id,
+			Grads: grads,
 		})
 
 		if err != nil {
