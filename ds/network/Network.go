@@ -11,6 +11,7 @@ package network
 
 import (
 	"encoding/gob"
+	"flads/util"
 	"fmt"
 	"net"
 )
@@ -102,6 +103,7 @@ func (network *Network[T]) Broadcast(msg T) error {
 	for nodeId, _ := range network.nodeIdTable {
 		err = network.Send(nodeId, msg)
 		if err != nil {
+			util.Logger.Println(err)
 			return err
 		}
 	}
@@ -126,6 +128,7 @@ func (network *Network[T]) Receive() (msg T, ok bool) {
 
 	// fmt.Println(network.nodeId, "Receive, ", network.queue)
 
+	// util.Logger.Println("net queue length is ", len(network.queue))
 	if len(network.queue) == 0 {
 		var t T
 		return t, false
@@ -145,13 +148,18 @@ func (network *Network[T]) handleConnection(conn net.Conn) error {
 
 	decoder := gob.NewDecoder(conn)
 	var msg T
+	util.Logger.Println("before decode")
 	err := decoder.Decode(&msg)
+	util.Logger.Println("after decode")
 
 	conn.Close()
 
 	if err == nil {
 		// TODO: Locking
 		network.queue = append(network.queue, msg)
+		util.Logger.Println("Appended to net queue", len(network.queue))
+	} else {
+		util.Logger.Println("Error in handleConnection: ", err)
 	}
 
 	return err

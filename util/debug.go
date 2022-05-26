@@ -18,7 +18,8 @@ func Debug[T any](s T) {
 var Logger *log.Logger = log.Default()
 
 func InitLogger(nodeId int) {
-	file, _ := os.Create("log.txt")
+	fname := fmt.Sprintf("log%d.txt", nodeId)
+	file, _ := os.Create(fname)
 	mw := io.MultiWriter(file)
 	prefix := fmt.Sprintf("LOG %d: ", nodeId)
 	Logger = log.New(mw, prefix, 0)

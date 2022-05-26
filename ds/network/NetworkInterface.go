@@ -1,5 +1,7 @@
 package network
 
+import "encoding/gob"
+
 // Network Interface
 type INetwork[T any] interface {
 	Initialize(nodeId int, port string,
@@ -18,4 +20,9 @@ type INetwork[T any] interface {
 	Multicast(nodeIds []int, msg T) error
 
 	Receive() (msg T, ok bool)
+}
+
+type serializable interface {
+	gob.GobEncoder
+	gob.GobDecoder
 }

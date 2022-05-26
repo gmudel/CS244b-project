@@ -8,8 +8,8 @@ import (
 )
 
 type Algo2Message struct {
-	id    int
-	grads ml.Gradients
+	Id    int
+	Grads ml.Gradients
 }
 
 type Algo2Node struct {
@@ -33,18 +33,21 @@ func (node *Algo2Node) Run() {
 	if ready, grads := node.ml.GetGradients(); ready {
 		allGrads = append(allGrads, grads)
 		err := node.net.Broadcast(Algo2Message{
-			id:    node.id,
-			grads: grads,
+			Id: node.id,
+			// Grads: grads,
 		})
 
-		if err == nil {
+		if err != nil {
 			util.Logger.Println("broadcast failed")
+		} else {
+			util.Logger.Println("broadcasted")
 		}
 	}
 	msg, received := node.net.Receive()
 	for received {
+		util.Logger.Println("recieved from ", msg.Id)
 		time.Sleep(time.Second)
-		var grads ml.Gradients = msg.grads
+		var grads ml.Gradients = msg.Grads
 		allGrads = append(allGrads, grads)
 		msg, received = node.net.Receive()
 	}

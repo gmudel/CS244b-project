@@ -50,14 +50,14 @@ func makeModel() ml.MLProcess {
 	return model
 }
 
-func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int]string) network.Network[T] {
+func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int]string) *network.Network[T] {
 	net := network.Network[T]{}
 	net.Initialize(curNodeId, port, make([]T, 0), networkTable)
 	err := net.Listen()
 	if err != nil {
 		panic("Network not able to listen")
 	}
-	return net
+	return &net
 }
 
 func main() {
@@ -86,7 +86,7 @@ func main() {
 		nodes := make([]protocols.Node[protocols.Algo1Message], numNodes)
 		for i := 0; i < numNodes; i++ {
 			nodes[i] = &protocols.Algo1Node{}
-			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net)
+			nodes[i].Initialize(i, strconv.Itoa(i), mlp, *net)
 		}
 		for {
 			for i := 0; i < numNodes; i++ {
@@ -98,7 +98,7 @@ func main() {
 		nodes := make([]protocols.Node[protocols.Algo2Message], numNodes)
 		for i := 0; i < numNodes; i++ {
 			nodes[i] = &protocols.Algo2Node{}
-			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net)
+			nodes[i].Initialize(i, strconv.Itoa(i), mlp, *net)
 		}
 		for {
 			for i := 0; i < numNodes; i++ {

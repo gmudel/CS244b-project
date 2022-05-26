@@ -10,7 +10,7 @@ type MLPGrads struct {
 }
 
 type Gradients struct {
-	gradBuffer []MLPGrads
+	GradBuffer []MLPGrads
 }
 
 type MLProcess interface {
