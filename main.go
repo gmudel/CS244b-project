@@ -94,17 +94,15 @@ func main() {
 			}
 		}
 	} else if dssMode == 2 {
-		if dssMode == 1 {
-			net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
-			nodes := make([]protocols.Node[protocols.Algo2Message], numNodes)
+		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
+		nodes := make([]protocols.Node[protocols.Algo2Message], numNodes)
+		for i := 0; i < numNodes; i++ {
+			nodes[i] = &protocols.Algo2Node{}
+			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net)
+		}
+		for {
 			for i := 0; i < numNodes; i++ {
-				nodes[i] = &protocols.Algo2Node{}
-				nodes[i].Initialize(i, strconv.Itoa(i), mlp, net)
-			}
-			for {
-				for i := 0; i < numNodes; i++ {
-					nodes[i].Run()
-				}
+				nodes[i].Run()
 			}
 		}
 	}
