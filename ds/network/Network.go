@@ -101,10 +101,12 @@ func (network *NetworkClass[T]) Broadcast(msg T) error {
 
 	var err error
 	for nodeId, _ := range network.nodeIdTable {
-		err = network.Send(nodeId, msg)
-		if err != nil {
-			util.Logger.Println(err)
-			return err
+		if nodeId != network.nodeId {
+			err = network.Send(nodeId, msg)
+			if err != nil {
+				util.Logger.Println(err)
+				return err
+			}
 		}
 	}
 
