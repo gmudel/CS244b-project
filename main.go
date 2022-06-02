@@ -73,15 +73,15 @@ func main() {
 
 	numNodes := 2
 	curNodeId, err := strconv.Atoi(os.Args[1])
-	dssMode := ZAB
+	dssMode := ALGO2
 	util.InitLogger(curNodeId)
 	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
 	}
 
 	networkTable := map[int]string{ // nodeId : ipAddr
-		0: "localhost:7009",
-		1: "localhost:7010",
+		0: "54.187.111.45:7009",
+		1: "54.193.186.100:7010",
 		// 2: "localhost:7007",
 	}
 
@@ -98,9 +98,7 @@ func main() {
 			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
 		}
 		for {
-			for i := 0; i < numNodes; i++ {
-				nodes[i].Run()
-			}
+			nodes[curNodeId].Run()
 		}
 	} else if dssMode == ALGO2 {
 		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
@@ -110,9 +108,7 @@ func main() {
 			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
 		}
 		for {
-			for i := 0; i < numNodes; i++ {
-				nodes[i].Run()
-			}
+			nodes[curNodeId].Run()
 		}
 	} else if dssMode == ZAB {
 		fmt.Println("running zab")
