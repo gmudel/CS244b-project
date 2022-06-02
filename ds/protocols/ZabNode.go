@@ -53,6 +53,7 @@ type ZabNode struct {
 	leaderId        int
 	ml              ml.MLProcess
 	net             network.Network[ZabMessage]
+	heartbeatNet    network.Network[ZabMessage]
 	leaderCounter   int
 	proposalCounter int
 	commitCounter   int
@@ -71,13 +72,14 @@ type ZabNode struct {
 	followerAckEpochs map[int]*ZabViewChange
 }
 
-func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[ZabMessage], numNodes int) {
+func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[ZabMessage], heartbeatNet network.Network[ZabMessage], numNodes int) {
 	node.id = id
 	node.numNodes = numNodes
 	node.name = name
 	node.leaderId = 0
 	node.ml = mlp
 	node.net = net
+	node.heartbeatNet = heartbeatNet
 	node.leaderCounter = 0
 	node.proposalCounter = 0
 	node.commitCounter = 0
@@ -93,7 +95,7 @@ func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net netwo
 	for i, _ := range node.heartbeats {
 		node.heartbeats[i] = time.Now()
 	}
-	go node.heartbeatSender()
+	go node.heartbeat()
 }
 
 func (node *ZabNode) Run() {
@@ -261,14 +263,15 @@ func (node *ZabNode) commit(c *ZabProposalAckCommit) {
 }
 
 // Heartbeat
-func (node *ZabNode) heartbeatSender() {
+func (node *ZabNode) heartbeat() {
 	for {
 		if node.id != node.leaderId {
 			fmt.Println("in follower")
-			node.net.Send(node.leaderId, ZabMessage{
+			node.heartbeatNet.Send(node.leaderId, ZabMessage{
 				SenderId: node.id,
 				MsgType:  HEARTBEAT,
 			})
+			util.Logger.Println("sent heartbeat to leader at", time.Now())
 			if time.Time.Sub(time.Now(), node.heartbeats[node.leaderId]) >= node.timeout {
 				// go to phase 0
 				panic("follower didn't receive heartbeat")
@@ -277,22 +280,30 @@ func (node *ZabNode) heartbeatSender() {
 			}
 		} else {
 			fmt.Println("in leader")
-			node.net.Broadcast(ZabMessage{
+			node.heartbeatNet.Broadcast(ZabMessage{
 				SenderId: node.id,
 				MsgType:  HEARTBEAT,
 			})
 			count := 0
-			for _, t := range node.heartbeats {
+			for nodeId, t := range node.heartbeats {
 				if time.Time.Sub(time.Now(), t) < node.timeout {
 					count++
+				} else {
+					util.Logger.Println("leader received stale heartbeat from node", nodeId)
 				}
 			}
 			if count <= node.numNodes/2 {
 				// go to phase 0
-				panic("leader didn't receive heartbeat")
+				panic("leader didn't receive enough heartbeats")
 				node.reset = true
 				return
 			}
+		}
+
+		zabMsg, received := node.heartbeatNet.Receive()
+		for received {
+			node.handleHeartbeat(&zabMsg)
+			zabMsg, received = node.heartbeatNet.Receive()
 		}
 
 		time.Sleep(time.Second)
@@ -307,7 +318,9 @@ func (node *ZabNode) handleHeartbeat(msg *ZabMessage) {
 			util.Logger.Println("follower got heartbeat from non-leader")
 		}
 	} else {
-		node.heartbeats[msg.SenderId] = time.Now()
+		t := time.Now()
+		node.heartbeats[msg.SenderId] = t
+		util.Logger.Println("received heartbeat from", msg.SenderId, "at", t)
 
 	}
 }
