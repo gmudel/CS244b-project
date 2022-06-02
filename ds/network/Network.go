@@ -91,7 +91,8 @@ func (network *NetworkClass[T]) Send(nodeId int, msg T) error {
 
 	// Encode the message over the connection
 	encoder := gob.NewEncoder(conn)
-	err = encoder.Encode(&msg) // Might want encoder.Encode(msg)
+	err = encoder.Encode(msg) // Might want encoder.Encode(msg)
+	util.Logger.Println("In Send(), sent msg", msg)
 	return err
 }
 
@@ -139,6 +140,7 @@ func (network *NetworkClass[T]) Receive() (msg T, ok bool) {
 	msg = network.queue[0]
 	network.queue = network.queue[1:]
 
+	util.Logger.Println("In Receive(), received msg", msg)
 	return msg, true
 
 }
@@ -150,16 +152,14 @@ func (network *NetworkClass[T]) handleConnection(conn net.Conn) error {
 
 	decoder := gob.NewDecoder(conn)
 	var msg T
-	util.Logger.Println("before decode")
 	err := decoder.Decode(&msg)
-	util.Logger.Println("after decode")
 
 	conn.Close()
 
 	if err == nil {
 		// TODO: Locking
 		network.queue = append(network.queue, msg)
-		util.Logger.Println("Appended to net queue", len(network.queue))
+		util.Logger.Println("msg contains ", msg)
 	} else {
 		util.Logger.Println("Error in handleConnection: ", err)
 	}

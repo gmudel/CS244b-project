@@ -88,16 +88,16 @@ func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 			// fmt.Println(reflect.TypeOf(net.FC1.Weight.Grad()))
 			// TODO: Gradients for our layers are computed at this point. Send them.
 			model.addGradientsToBuffer()
-			localGrad := MLPGrads{
-				model.net.FC1.Weight.Grad(),
-				model.net.FC2.Weight.Grad(),
-				model.net.FC3.Weight.Grad(),
-				model.net.FC1.Bias.Grad(),
-				model.net.FC2.Bias.Grad(),
-				model.net.FC3.Bias.Grad(),
-			}
-			localGradSlice := []MLPGrads{localGrad}
-			model.UpdateModel(Gradients{GradBuffer: localGradSlice})
+			// localGrad := MLPGrads{
+			// 	model.net.FC1.Weight.Grad(),
+			// 	model.net.FC2.Weight.Grad(),
+			// 	model.net.FC3.Weight.Grad(),
+			// 	model.net.FC1.Bias.Grad(),
+			// 	model.net.FC2.Bias.Grad(),
+			// 	model.net.FC3.Bias.Grad(),
+			// }
+			// localGradSlice := []MLPGrads{localGrad}
+			// model.UpdateModel(Gradients{GradBuffer: localGradSlice})
 			trainLoss = loss.Item().(float32)
 			model.ZeroGrad()
 		}
@@ -160,41 +160,6 @@ func (model *SimpleNN) UpdateModel(incomingGradients Gradients) {
 		model.net.FC3.Bias.SetData(newB3)
 	}
 }
-
-// func train(net *models.MLPModule, opt torch.Optimizer, trainFn, testFn string, epochs int, save string) {
-// 	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainFn)
-// 	if e != nil {
-// 		panic(e)
-// 	}
-// 	defer torch.FinishGC()
-
-// 	for epoch := 0; epoch < epochs; epoch++ {
-// 		var trainLoss float32
-// 		startTime := time.Now()
-// 		trainLoader := MNISTLoader(trainFn, vocab)
-// 		testLoader := MNISTLoader(testFn, vocab)
-// 		totalSamples := 0
-// 		for trainLoader.Scan() {
-// 			data, label := trainLoader.Minibatch()
-// 			totalSamples += int(data.Shape()[0])
-// 			opt.ZeroGrad()
-// 			pred := net.Forward(data.To(device, data.Dtype()))
-// 			loss := F.NllLoss(pred, label.To(device, label.Dtype()), torch.Tensor{}, -100, "mean")
-// 			// fmt.Println(net.FC1.Weight.Grad())
-// 			loss.Backward()
-// 			// fmt.Println(type(net.FC1.Weight.Grad()))
-// 			// fmt.Println(reflect.TypeOf(net.FC1.Weight.Grad()))
-// 			// TODO: Gradients for our layers are computed at this point. Send them.
-// 			addGradients(net)
-// 			opt.Step()
-// 			trainLoss = loss.Item().(float32)
-// 		}
-// 		throughput := float64(totalSamples) / time.Since(startTime).Seconds()
-// 		log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
-// 		test(net, testLoader)
-// 	}
-// 	saveModel(net, save)
-// }
 
 // MNISTLoader returns a ImageLoader with MNIST training or testing tgz file
 func MNISTLoader(fn string, vocab map[string]int) *imageloader.ImageLoader {
@@ -280,3 +245,21 @@ func predictFile(fn string, m *models.MLPModule) {
 	n := transforms.Normalize([]float32{0.1307}, []float32{0.3081}).Run(t)
 	fmt.Println(m.Forward(n).Argmax().Item())
 }
+
+// func (model *SimpleNN) sumModelWeights(otherModel *SimpleNN) {
+// 	model.net.FC1.Weight.SetData(torch.Add(model.net.FC1.Weight, otherModel.net.FC1.Weight, 1.))
+// 	model.net.FC2.Weight.SetData(torch.Add(model.net.FC2.Weight, otherModel.net.FC2.Weight, 1.))
+// 	model.net.FC3.Weight.SetData(torch.Add(model.net.FC3.Weight, otherModel.net.FC3.Weight, 1.))
+// 	model.net.FC1.Bias.SetData(torch.Add(model.net.FC1.Bias, otherModel.net.FC1.Bias, 1.))
+// 	model.net.FC2.Bias.SetData(torch.Add(model.net.FC2.Bias, otherModel.net.FC2.Bias, 1.))
+// 	model.net.FC3.Bias.SetData(torch.Add(model.net.FC3.Bias, otherModel.net.FC3.Bias, 1.))
+// }
+
+// func (model *SimpleNN) divideModelWeights(n float32) {
+// 	model.net.FC1.Weight.SetData(torch.Div(model.net.FC1.Weight, otherModel.net.FC1.Weight, 1.))
+// 	model.net.FC2.Weight.SetData(torch.Add(model.net.FC2.Weight, otherModel.net.FC2.Weight, 1.))
+// 	model.net.FC3.Weight.SetData(torch.Add(model.net.FC3.Weight, otherModel.net.FC3.Weight, 1.))
+// 	model.net.FC1.Bias.SetData(torch.Add(model.net.FC1.Bias, otherModel.net.FC1.Bias, 1.))
+// 	model.net.FC2.Bias.SetData(torch.Add(model.net.FC2.Bias, otherModel.net.FC2.Bias, 1.))
+// 	model.net.FC3.Bias.SetData(torch.Add(model.net.FC3.Bias, otherModel.net.FC3.Bias, 1.))
+// }

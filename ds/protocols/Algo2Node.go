@@ -20,7 +20,7 @@ type Algo2Node struct {
 	timeoutInSecs int
 }
 
-func (node *Algo2Node) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[Algo2Message]) {
+func (node *Algo2Node) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[Algo2Message], numNodes int) {
 	node.id = id
 	node.name = name
 	node.ml = mlp

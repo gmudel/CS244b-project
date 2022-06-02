@@ -6,6 +6,7 @@ import (
 	"flads/ml"
 	"flads/util"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -13,6 +14,14 @@ import (
 
 	torch "github.com/wangkuiyi/gotorch"
 	"github.com/wangkuiyi/gotorch/nn/initializer"
+)
+
+type dssMode int16
+
+const (
+	ALGO1 = iota
+	ALGO2
+	ZAB
 )
 
 var device torch.Device
@@ -64,7 +73,7 @@ func main() {
 
 	numNodes := 2
 	curNodeId, err := strconv.Atoi(os.Args[1])
-	dssMode := 2
+	dssMode := ZAB
 	util.InitLogger(curNodeId)
 	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
@@ -81,30 +90,40 @@ func main() {
 
 	port := ":" + strings.Split(networkTable[curNodeId], ":")[1]
 
-	if dssMode == 1 {
+	if dssMode == ALGO1 {
 		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable)
 		nodes := make([]protocols.Node[protocols.Algo1Message], numNodes)
 		for i := 0; i < numNodes; i++ {
 			nodes[i] = &protocols.Algo1Node{}
-			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net)
+			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
 		}
 		for {
 			for i := 0; i < numNodes; i++ {
 				nodes[i].Run()
 			}
 		}
-	} else if dssMode == 2 {
+	} else if dssMode == ALGO2 {
 		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
 		nodes := make([]protocols.Node[protocols.Algo2Message], numNodes)
 		for i := 0; i < numNodes; i++ {
 			nodes[i] = &protocols.Algo2Node{}
-			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net)
+			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
 		}
 		for {
 			for i := 0; i < numNodes; i++ {
 				nodes[i].Run()
 			}
 		}
+	} else if dssMode == ZAB {
+		fmt.Println("running zab")
+		net := setup[protocols.ZabMessage](numNodes, port, curNodeId, networkTable)
+		nodes := make([]protocols.Node[protocols.ZabMessage], numNodes)
+		for i := 0; i < numNodes; i++ {
+			nodes[i] = &protocols.ZabNode{}
+			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
+		}
+		for {
+			nodes[curNodeId].Run()
+		}
 	}
-
 }
