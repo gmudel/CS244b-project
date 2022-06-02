@@ -74,16 +74,17 @@ func main() {
 
 	numNodes := 2
 	curNodeId, err := strconv.Atoi(os.Args[1])
-	dssMode := ALGO2
+	dssMode := ZAB
 	util.InitLogger(curNodeId)
 	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
 	}
 
 	networkTable := map[int]string{ // nodeId : ipAddr
-		0: "54.187.111.45:7009",
-		1: "54.193.186.100:7010",
-		// 2: "localhost:7007",
+		0: "localhost:7009",
+		1: "localhost:7010",
+		// 2: "localhost:7011",
+		// 3: "localhost:7012",
 	}
 
 	mlp, trainPath, testPath, _ := makeModel()
@@ -101,11 +102,8 @@ func main() {
 
 	if dssMode == ALGO1 {
 		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable)
-		nodes := make([]protocols.Node[protocols.Algo1Message], numNodes)
-		for i := 0; i < numNodes; i++ {
-			nodes[i] = &protocols.Algo1Node{}
-			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
-		}
+		node := &protocols.Algo1Node{}
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -114,7 +112,7 @@ func main() {
 			for trainLoader.Scan() {
 				samples, trainLoss = mlp.TrainBatch(trainLoader)
 				totalSamples += samples
-				nodes[curNodeId].Run()
+				node.Run()
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
@@ -122,11 +120,8 @@ func main() {
 		}
 	} else if dssMode == ALGO2 {
 		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
-		nodes := make([]protocols.Node[protocols.Algo2Message], numNodes)
-		for i := 0; i < numNodes; i++ {
-			nodes[i] = &protocols.Algo2Node{}
-			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
-		}
+		node := &protocols.Algo2Node{}
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -135,7 +130,7 @@ func main() {
 			for trainLoader.Scan() {
 				samples, trainLoss = mlp.TrainBatch(trainLoader)
 				totalSamples += samples
-				nodes[curNodeId].Run()
+				node.Run()
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
@@ -144,11 +139,8 @@ func main() {
 	} else if dssMode == ZAB {
 		fmt.Println("running zab")
 		net := setup[protocols.ZabMessage](numNodes, port, curNodeId, networkTable)
-		nodes := make([]protocols.Node[protocols.ZabMessage], numNodes)
-		for i := 0; i < numNodes; i++ {
-			nodes[i] = &protocols.ZabNode{}
-			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
-		}
+		node := &protocols.ZabNode{}
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -157,7 +149,7 @@ func main() {
 			for trainLoader.Scan() {
 				samples, trainLoss = mlp.TrainBatch(trainLoader)
 				totalSamples += samples
-				nodes[curNodeId].Run()
+				node.Run()
 				// time.Sleep(time.Second)
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
@@ -166,7 +158,7 @@ func main() {
 			// nodes[curNodeId].Run()
 		}
 		for {
-			nodes[curNodeId].Run()
+			node.Run()
 		}
 	}
 }
