@@ -55,8 +55,8 @@ func (model *SmallNN) ZeroGrad() {
 }
 
 func (model *SmallNN) addGradientsToBuffer() {
-	// model.lock.Lock()
-	// defer model.lock.Unlock()
+	model.lock.Lock()
+	defer model.lock.Unlock()
 	mlpgrads := MLPGrads{
 		model.net.FC1.Weight.Grad(),
 		model.net.FC2.Weight.Grad(),
@@ -71,8 +71,8 @@ func (model *SmallNN) addGradientsToBuffer() {
 func (model *SmallNN) UpdateModel(incomingGradients Gradients) {
 	// Run SGD for each incoming grad
 	incomingGrads := incomingGradients.GradBuffer
-	// model.lock.Lock()
-	// defer model.lock.Unlock()
+	model.lock.Lock()
+	defer model.lock.Unlock()
 
 	for _, mlpgrad := range incomingGrads {
 		newW1 := torch.Sub(model.net.FC1.Weight, mlpgrad.W1, float32(model.lr))
@@ -93,8 +93,8 @@ func (model *SmallNN) UpdateModel(incomingGradients Gradients) {
 
 func (model *SmallNN) GetGradients() (ready bool, gradients Gradients) {
 	// flush gradient buffer
-	// model.lock.Lock()
-	// defer model.lock.Unlock()
+	model.lock.Lock()
+	defer model.lock.Unlock()
 
 	if len(model.grads.GradBuffer) != 0 {
 		GradBufferCopy := make([]MLPGrads, len(model.grads.GradBuffer))

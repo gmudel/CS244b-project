@@ -11,11 +11,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	torch "github.com/wangkuiyi/gotorch"
 	"github.com/wangkuiyi/gotorch/nn/initializer"
-	"github.com/wangkuiyi/gotorch/vision/imageloader"
 )
 
 type dssMode int16
@@ -28,7 +26,7 @@ const (
 
 var device torch.Device
 
-func makeModel() (ml.MLProcess, string, string, string) {
+func makeModel() ml.MLProcess {
 	if torch.IsCUDAAvailable() {
 		log.Println("CUDA is valid")
 		device = torch.NewDevice("cuda")
@@ -57,7 +55,8 @@ func makeModel() (ml.MLProcess, string, string, string) {
 
 	trainCmd.Parse(os.Args[2:])
 	model := ml.MakeSmallNN(*lr, *epochs, device)
-	return model, *trainTar, *testTar, *save
+	go model.Train(*trainTar, *testTar, *save)
+	return model
 }
 
 func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int]string) network.Network[T] {
@@ -86,16 +85,8 @@ func main() {
 		// 2: "localhost:7007",
 	}
 
-	mlp, trainPath, testPath, _ := makeModel()
+	mlp := makeModel()
 	util.Logger.Println("made model and began training")
-	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainPath)
-	if e != nil {
-		panic(e)
-	}
-
-	var totalSamples int
-	var samples int
-	var trainLoss float32
 
 	port := ":" + strings.Split(networkTable[curNodeId], ":")[1]
 
@@ -106,19 +97,10 @@ func main() {
 			nodes[i] = &protocols.Algo1Node{}
 			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
 		}
-		for epoch := 0; epoch < 10; epoch++ {
-			startTime := time.Now()
-			totalSamples = 0
-			trainLoader := ml.MNISTLoader(trainPath, vocab)
-			testLoader := ml.MNISTLoader(testPath, vocab)
-			for trainLoader.Scan() {
-				samples, trainLoss = mlp.TrainBatch(trainLoader)
-				totalSamples += samples
-				nodes[curNodeId].Run()
+		for {
+			for i := 0; i < numNodes; i++ {
+				nodes[i].Run()
 			}
-			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
-			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
-			mlp.Test(testLoader)
 		}
 	} else if dssMode == ALGO2 {
 		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
@@ -127,19 +109,10 @@ func main() {
 			nodes[i] = &protocols.Algo2Node{}
 			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
 		}
-		for epoch := 0; epoch < 10; epoch++ {
-			startTime := time.Now()
-			totalSamples = 0
-			trainLoader := ml.MNISTLoader(trainPath, vocab)
-			testLoader := ml.MNISTLoader(testPath, vocab)
-			for trainLoader.Scan() {
-				samples, trainLoss = mlp.TrainBatch(trainLoader)
-				totalSamples += samples
-				nodes[curNodeId].Run()
+		for {
+			for i := 0; i < numNodes; i++ {
+				nodes[i].Run()
 			}
-			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
-			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
-			mlp.Test(testLoader)
 		}
 	} else if dssMode == ZAB {
 		fmt.Println("running zab")
@@ -148,22 +121,6 @@ func main() {
 		for i := 0; i < numNodes; i++ {
 			nodes[i] = &protocols.ZabNode{}
 			nodes[i].Initialize(i, strconv.Itoa(i), mlp, net, numNodes)
-		}
-		for epoch := 0; epoch < 10; epoch++ {
-			startTime := time.Now()
-			totalSamples = 0
-			trainLoader := ml.MNISTLoader(trainPath, vocab)
-			testLoader := ml.MNISTLoader(testPath, vocab)
-			for trainLoader.Scan() {
-				samples, trainLoss = mlp.TrainBatch(trainLoader)
-				totalSamples += samples
-				nodes[curNodeId].Run()
-				// time.Sleep(time.Second)
-			}
-			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
-			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
-			mlp.Test(testLoader)
-			// nodes[curNodeId].Run()
 		}
 		for {
 			nodes[curNodeId].Run()
