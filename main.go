@@ -54,7 +54,7 @@ func makeModel() ml.MLProcess {
 	// }
 
 	trainCmd.Parse(os.Args[2:])
-	model := ml.MakeSimpleNN(*lr, *epochs, device)
+	model := ml.MakeSmallNN(*lr, *epochs, device)
 	go model.Train(*trainTar, *testTar, *save)
 	return model
 }

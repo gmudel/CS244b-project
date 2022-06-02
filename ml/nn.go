@@ -17,7 +17,7 @@ import (
 	"gocv.io/x/gocv"
 )
 
-func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
+func (model *SmallNN) Train(trainPath, testPath, savePath string) {
 	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainPath)
 	if e != nil {
 		panic(e)
@@ -61,59 +61,6 @@ func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 	saveModel(model.net, savePath)
 }
 
-func (model *SimpleNN) GetGradients() (ready bool, gradients Gradients) {
-	// flush gradient buffer
-	model.lock.Lock()
-	defer model.lock.Unlock()
-
-	if len(model.grads.GradBuffer) != 0 {
-		GradBufferCopy := make([]MLPGrads, len(model.grads.GradBuffer))
-		copy(GradBufferCopy, model.grads.GradBuffer)
-
-		model.grads.GradBuffer = nil
-		return true, Gradients{GradBuffer: GradBufferCopy}
-	} else {
-		return false, Gradients{}
-	}
-}
-
-func (model *SimpleNN) addGradientsToBuffer() {
-	model.lock.Lock()
-	defer model.lock.Unlock()
-	mlpgrads := MLPGrads{
-		model.net.FC1.Weight.Grad(),
-		model.net.FC2.Weight.Grad(),
-		model.net.FC3.Weight.Grad(),
-		model.net.FC1.Bias.Grad(),
-		model.net.FC2.Bias.Grad(),
-		model.net.FC3.Bias.Grad(),
-	}
-	model.grads.GradBuffer = append(model.grads.GradBuffer, mlpgrads)
-}
-
-func (model *SimpleNN) UpdateModel(incomingGradients Gradients) {
-	// Run SGD for each incoming grad
-	incomingGrads := incomingGradients.GradBuffer
-	model.lock.Lock()
-	defer model.lock.Unlock()
-
-	for _, mlpgrad := range incomingGrads {
-		newW1 := torch.Sub(model.net.FC1.Weight, mlpgrad.W1, float32(model.lr))
-		newW2 := torch.Sub(model.net.FC2.Weight, mlpgrad.W2, float32(model.lr))
-		newW3 := torch.Sub(model.net.FC3.Weight, mlpgrad.W3, float32(model.lr))
-		model.net.FC1.Weight.SetData(newW1)
-		model.net.FC2.Weight.SetData(newW2)
-		model.net.FC3.Weight.SetData(newW3)
-
-		newB1 := torch.Sub(model.net.FC1.Bias, mlpgrad.B1, float32(model.lr))
-		newB2 := torch.Sub(model.net.FC2.Bias, mlpgrad.B2, float32(model.lr))
-		newB3 := torch.Sub(model.net.FC3.Bias, mlpgrad.B3, float32(model.lr))
-		model.net.FC1.Bias.SetData(newB1)
-		model.net.FC2.Bias.SetData(newB2)
-		model.net.FC3.Bias.SetData(newB3)
-	}
-}
-
 // MNISTLoader returns a ImageLoader with MNIST training or testing tgz file
 func MNISTLoader(fn string, vocab map[string]int) *imageloader.ImageLoader {
 	trans := transforms.Compose(transforms.ToTensor(), transforms.Normalize([]float32{0.1307}, []float32{0.3081}))
@@ -124,7 +71,7 @@ func MNISTLoader(fn string, vocab map[string]int) *imageloader.ImageLoader {
 	return loader
 }
 
-func (model *SimpleNN) Test(loader *imageloader.ImageLoader) {
+func (model *SmallNN) Test(loader *imageloader.ImageLoader) {
 	testLoss := float32(0)
 	correct := int64(0)
 	samples := 0
