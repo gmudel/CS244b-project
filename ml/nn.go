@@ -61,6 +61,33 @@ func (model *SmallNN) Train(trainPath, testPath, savePath string) {
 	saveModel(model.net, savePath)
 }
 
+func (model *SmallNN) TrainBatch(trainLoader *imageloader.ImageLoader) (int, float32) {
+
+	data, label := trainLoader.Minibatch()
+	numSamples := int(data.Shape()[0])
+	pred := model.net.Forward(data.To(model.device, data.Dtype()))
+	loss := F.NllLoss(pred, label.To(model.device, label.Dtype()), torch.Tensor{}, -100, "mean")
+	loss.Backward()
+
+	// fmt.Println(type(net.FC1.Weight.Grad()))
+	// fmt.Println(reflect.TypeOf(net.FC1.Weight.Grad()))
+	// TODO: Gradients for our layers are computed at this point. Send them.
+	model.addGradientsToBuffer()
+	// localGrad := MLPGrads{
+	// 	model.net.FC1.Weight.Grad(),
+	// 	model.net.FC2.Weight.Grad(),
+	// 	model.net.FC3.Weight.Grad(),
+	// 	model.net.FC1.Bias.Grad(),
+	// 	model.net.FC2.Bias.Grad(),
+	// 	model.net.FC3.Bias.Grad(),
+	// }
+	// localGradSlice := []MLPGrads{localGrad}
+	// model.UpdateModel(Gradients{GradBuffer: localGradSlice})
+	trainLoss := loss.Item().(float32)
+	model.ZeroGrad()
+	return numSamples, trainLoss
+}
+
 // MNISTLoader returns a ImageLoader with MNIST training or testing tgz file
 func MNISTLoader(fn string, vocab map[string]int) *imageloader.ImageLoader {
 	trans := transforms.Compose(transforms.ToTensor(), transforms.Normalize([]float32{0.1307}, []float32{0.3081}))
