@@ -7,62 +7,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	torch "github.com/wangkuiyi/gotorch"
 	F "github.com/wangkuiyi/gotorch/nn/functional"
 	"github.com/wangkuiyi/gotorch/vision/imageloader"
-	"github.com/wangkuiyi/gotorch/vision/models"
+	models "github.com/wangkuiyi/gotorch/vision/models"
 	"github.com/wangkuiyi/gotorch/vision/transforms"
 	"gocv.io/x/gocv"
 )
-
-// func listenForGradRequest() {
-
-// }
-
-// simple MLP NN, trained with vanilla SGD
-type SimpleNN struct {
-	net    *models.MLPModule
-	lr     float64
-	epochs int
-	grads  Gradients
-	lock   sync.Mutex
-	device torch.Device
-}
-
-func MakeSimpleNN(lr float64, epochs int, device torch.Device) *SimpleNN {
-	nn := SimpleNN{models.MLP(), lr, epochs, Gradients{}, sync.Mutex{}, device}
-	nn.net.To(device)
-	return &nn
-}
-
-func (model *SimpleNN) ZeroGrad() {
-	W1Shape := model.net.FC1.Weight.Grad().Shape()
-	model.net.FC1.Weight.Grad().SetData(torch.Full(W1Shape, 0, true))
-
-	W2Shape := model.net.FC2.Weight.Grad().Shape()
-	model.net.FC2.Weight.Grad().SetData(torch.Full(W2Shape, 0, true))
-
-	W3Shape := model.net.FC3.Weight.Grad().Shape()
-	model.net.FC3.Weight.Grad().SetData(torch.Full(W3Shape, 0, true))
-
-	b1Shape := model.net.FC1.Bias.Grad().Shape()
-	model.net.FC1.Bias.Grad().SetData(torch.Full(b1Shape, 0, true))
-
-	b2Shape := model.net.FC2.Bias.Grad().Shape()
-	model.net.FC2.Bias.Grad().SetData(torch.Full(b2Shape, 0, true))
-
-	b3Shape := model.net.FC3.Bias.Grad().Shape()
-	model.net.FC3.Bias.Grad().SetData(torch.Full(b3Shape, 0, true))
-	// fmt.Println("out ZeroGrad")
-}
-
-func (model *SimpleNN) gradStep(grads []MLPGrads) {
-	model.lock.Lock()
-	defer model.lock.Unlock()
-}
 
 func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainPath)

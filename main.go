@@ -80,9 +80,9 @@ func main() {
 	}
 
 	networkTable := map[int]string{ // nodeId : ipAddr
-		0: "localhost:7003",
-		1: "localhost:7004",
-		// 2: "localhost:7005",
+		0: "localhost:7009",
+		1: "localhost:7010",
+		// 2: "localhost:7007",
 	}
 
 	mlp := makeModel()
