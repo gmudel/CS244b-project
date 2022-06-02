@@ -11,10 +11,10 @@ import (
 type MsgType int16
 
 const (
-	PROPOSAL = iota
+	WRITE_REQUEST = iota
+	PROPOSAL
 	ACK
 	COMMIT
-	WRITE_REQUEST
 )
 
 type ZabMessage struct {
@@ -53,10 +53,11 @@ func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net netwo
 	node.leaderCounter = 0
 	node.proposalCounter = 0
 	node.commitCounter = 0
+	node.pendingCommits = make(map[int]*ZabProposalAckCommit)
 }
 
 func (node *ZabNode) Run() {
-	if ready, localGrads := node.ml.GetGradients(); ready && node.leaderId != node.id {
+	if ready, localGrads := node.ml.GetGradients(); ready {
 		err := node.net.Send(node.leaderId, ZabMessage{
 			SenderId: node.id,
 			MsgType:  WRITE_REQUEST,
@@ -68,25 +69,27 @@ func (node *ZabNode) Run() {
 		if err != nil {
 			util.Logger.Println("From ZabNode Run(): Msg send failed", err)
 		} else {
-			util.Logger.Println("From ZabNode Run(): sent grads to leader from ", node.id)
+			util.Logger.Println("From ZabNode Run(): sent grads to leader from", node.id)
 		}
 	}
 
+	// for {
 	zabMsg, received := node.net.Receive()
 	for received {
-		util.Logger.Println("From ZabNode Run(): received ", zabMsg.MsgType, " from  ", zabMsg.SenderId)
-		// switch zabMsg.MsgType {
-		// case PROPOSAL:
-		// 	node.handleProposal(&zabMsg.ZabProposalAckCommit)
-		// case COMMIT:
-		// 	node.handleCommit(&zabMsg.ZabProposalAckCommit)
-		// case WRITE_REQUEST:
-		// 	node.handleWriteRequest(&zabMsg.ZabProposalAckCommit)
-		// case ACK:
-		// 	node.handleAck(&zabMsg.ZabProposalAckCommit)
-		// }
+		util.Logger.Println("From ZabNode Run(): received", zabMsg.MsgType, "from", zabMsg.SenderId, "with counter", zabMsg.Counter)
+		switch zabMsg.MsgType {
+		case PROPOSAL:
+			node.handleProposal(&zabMsg.ZabProposalAckCommit)
+		case COMMIT:
+			node.handleCommit(&zabMsg.ZabProposalAckCommit)
+		case WRITE_REQUEST:
+			node.handleWriteRequest(&zabMsg.ZabProposalAckCommit)
+		case ACK:
+			node.handleAck(&zabMsg.ZabProposalAckCommit)
+		}
 		zabMsg, received = node.net.Receive()
 	}
+	// }
 	node.processPendingCommits()
 }
 
@@ -102,11 +105,14 @@ func (node *ZabNode) processPendingCommits() {
 }
 
 func (node *ZabNode) handleProposal(p *ZabProposalAckCommit) {
-	fmt.Println("in handleProposal")
 	node.history = append(node.history, p)
 	if p.Counter > node.proposalCounter {
 		node.proposalCounter = p.Counter
 	}
+	if p.Counter == -1 {
+		fmt.Println(node.id, "has a counter of -1")
+	}
+	util.Logger.Println("sending ack to leader with counter", p.Counter)
 	node.net.Send(node.leaderId, ZabMessage{
 		SenderId: node.id,
 		MsgType:  ACK,
@@ -118,7 +124,7 @@ func (node *ZabNode) handleProposal(p *ZabProposalAckCommit) {
 }
 
 func (node *ZabNode) handleCommit(c *ZabProposalAckCommit) {
-	for c.Counter > node.commitCounter+1 {
+	if c.Counter > node.commitCounter+1 {
 		// wait
 		node.pendingCommits[c.Counter] = c
 	}
@@ -135,7 +141,6 @@ func (node *ZabNode) commit(c *ZabProposalAckCommit) {
 
 func (node *ZabNode) handleWriteRequest(msg *ZabProposalAckCommit) {
 	// propose to all followers in Q
-	fmt.Println("in handleWriteRequest")
 	msg.Counter = node.leaderCounter
 	node.leaderCounter += 1
 	node.net.Broadcast(ZabMessage{
@@ -147,8 +152,8 @@ func (node *ZabNode) handleWriteRequest(msg *ZabProposalAckCommit) {
 }
 
 func (node *ZabNode) handleAck(msg *ZabProposalAckCommit) {
-	fmt.Println("in handleAck")
 	// increment counter for this message
+	util.Logger.Println("counter is", msg.Counter)
 	node.ackCounter[msg.Counter] += 1
 	// if we have a quorum, send commit
 	if node.ackCounter[msg.Counter] > node.numNodes/2 {
@@ -159,7 +164,7 @@ func (node *ZabNode) handleAck(msg *ZabProposalAckCommit) {
 		})
 	}
 	// TODO: check if we want to commit ourselves
-	node.commit(msg)
+	// node.commit(msg)
 }
 
 /****************************************************************************************************/
