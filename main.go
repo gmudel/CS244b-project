@@ -27,7 +27,7 @@ const (
 
 var device torch.Device
 
-func makeModel() (ml.MLProcess, string, string, string) {
+func makeModel(trainDir string, nodeId int) (ml.MLProcess, string, string, string) {
 	if torch.IsCUDAAvailable() {
 		log.Println("CUDA is valid")
 		device = torch.NewDevice("cuda")
@@ -38,9 +38,11 @@ func makeModel() (ml.MLProcess, string, string, string) {
 
 	initializer.ManualSeed(1)
 
+	trainPath := fmt.Sprintf("./%s/%d/mnist_png_training_shuffled.tar.gz", trainDir, nodeId)
+
 	trainCmd := flag.NewFlagSet("train", flag.ExitOnError)
-	trainTar := trainCmd.String("data", "./data/mnist_png/mnist_png_training_shuffled.tar.gz", "data tarball")
-	testTar := trainCmd.String("test", "./data/mnist_png/mnist_png_testing_shuffled.tar.gz", "data tarball")
+	trainTar := trainCmd.String("data", trainPath, "data tarball")
+	testTar := trainCmd.String("test", "./test_data/mnist_png_testing_shuffled.tar.gz", "data tarball")
 	save := trainCmd.String("save", "./ml/mnist_model.gob", "the model file")
 
 	// predictCmd := flag.NewFlagSet("predict", flag.ExitOnError)
@@ -74,12 +76,16 @@ func main() {
 	numNodesPtr := flag.Int("numNodes", 3, "Number of nodes in the network")
 	curNodeIdPtr := flag.Int("id", -1, "Current node id")
 	leaderIdPtr := flag.Int("leader", -1, "leaderId")
+	trainDirPtr := flag.String("trainDir", "data", "directory which contains node_id/mnist_png_training_shuffled.tar.gz")
+
 	flag.Parse()
 
 	numNodes := *numNodesPtr
 	curNodeId := *curNodeIdPtr
 	leaderId := *leaderIdPtr
 	dssMode := ZAB
+
+	util.InitPlotLogger(curNodeId, *trainDirPtr)
 
 	util.InitLogger(curNodeId)
 	if curNodeId >= numNodes || curNodeId < 0 {
@@ -100,7 +106,7 @@ func main() {
 		// 3: "localhost:8012",
 	}
 
-	mlp, trainPath, testPath, _ := makeModel()
+	mlp, trainPath, testPath, _ := makeModel(*trainDirPtr, curNodeId)
 	util.Logger.Println("made model and began training")
 	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainPath)
 	if e != nil {
@@ -130,7 +136,7 @@ func main() {
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
-			mlp.Test(testLoader)
+			mlp.Test(testLoader, util.PlotLogger, epoch)
 		}
 	} else if dssMode == ALGO2 {
 		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable, "tcp")
@@ -148,7 +154,7 @@ func main() {
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
-			mlp.Test(testLoader)
+			mlp.Test(testLoader, util.PlotLogger, epoch)
 		}
 	} else if dssMode == ZAB {
 		fmt.Println("running zab")
@@ -169,7 +175,7 @@ func main() {
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
-			mlp.Test(testLoader)
+			mlp.Test(testLoader, util.PlotLogger, epoch)
 			// nodes[curNodeId].Run()
 		}
 		for {

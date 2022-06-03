@@ -341,7 +341,7 @@ func (node *ZabNode) commit(c *ZabProposalAckCommit) {
 	testPath := "./data/mnist_png/mnist_png_testing_shuffled.tar.gz"
 	vocab, _ := imageloader.BuildLabelVocabularyFromTgz(trainPath)
 	testLoader := ml.MNISTLoader(testPath, vocab)
-	node.ml.Test(testLoader)
+	node.ml.Test(testLoader, util.PlotLogger, -1)
 	// trainBatch.train()
 }
 

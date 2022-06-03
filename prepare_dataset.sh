@@ -10,15 +10,17 @@
 #   - data/<node_id>/mnist_png_training_shuffled.tar.gz
 #   - data/<node_id>/mnist_png_testing_shuffled.tar.gz
 
+datadir=$1
+
 echo "Cleaning dataset... "
-rm -r ./data/*
+rm -r ./$datadir/*
 
 echo "Partitioning dataset... "
-./partition_data.sh
+./partition_data.sh $datadir
 
 echo "Shuffling dataset... "
-./shuffle_dataset.sh
+./shuffle_dataset.sh $datadir
 
 # Remove intermediate files / non tar.gz files?
 echo "Removing temporary test files... "
-rm -r ./data/*-test*
+rm -r ./$datadir/*-test*

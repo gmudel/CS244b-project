@@ -1,6 +1,8 @@
 package ml
 
 import (
+	"log"
+
 	torch "github.com/wangkuiyi/gotorch"
 	"github.com/wangkuiyi/gotorch/vision/imageloader"
 )
@@ -18,5 +20,5 @@ type MLProcess interface {
 	GetGradients() (ready bool, gradients Gradients)
 	UpdateModel(incomingGradients Gradients)
 	TrainBatch(trainLoader *imageloader.ImageLoader) (int, float32)
-	Test(testLoader *imageloader.ImageLoader)
+	Test(testLoader *imageloader.ImageLoader, plotLogger *log.Logger, epochNum int)
 }
