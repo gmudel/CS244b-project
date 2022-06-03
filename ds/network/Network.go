@@ -14,6 +14,8 @@ import (
 	"flads/util"
 	"fmt"
 	"net"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
 // Network Type
@@ -83,17 +85,27 @@ func (network *NetworkClass[T]) Send(nodeId int, msg T) error {
 	}
 
 	// Initialize TCP connection with target
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
+	backoff.Retry(func() error {
+		conn, err := net.Dial("tcp", address)
+		// defer conn.Close()
+		if err != nil {
+			// if this is a temporary error, then retry
+			if terr, ok := err.(TemporaryError); ok && terr.Temporary() {
+				return err
+			}
+		}
+		// if we were successful, or there was a non-temporary error, fail
+		// Encode the message over the connection
+		encoder := gob.NewEncoder(conn)
+		err = encoder.Encode(msg) // Might want encoder.Encode(msg)
+		if err != nil {
+			util.Logger.Println("error encoding msg")
+		}
+		return nil
+	}, backoff.NewExponentialBackOff())
+	return nil
 
-	// Encode the message over the connection
-	encoder := gob.NewEncoder(conn)
-	err = encoder.Encode(msg) // Might want encoder.Encode(msg)
 	// util.Logger.Println("In Send(), sent msg", msg)
-	return err
 }
 
 // Unoptimized broadcast -- simple calls send for every node in the
