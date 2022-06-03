@@ -12,10 +12,10 @@ import png
 
 # source: http://abel.ee.ucla.edu/cvxopt/_downloads/mnist.py
 def read(dataset = "training", path = "."):
-    if dataset is "training":
+    if dataset == "training":
         fname_img = os.path.join(path, 'train-images-idx3-ubyte')
         fname_lbl = os.path.join(path, 'train-labels-idx1-ubyte')
-    elif dataset is "testing":
+    elif dataset == "testing":
         fname_img = os.path.join(path, 't10k-images-idx3-ubyte')
         fname_lbl = os.path.join(path, 't10k-labels-idx1-ubyte')
     else:
@@ -38,7 +38,7 @@ def write_data(output_dirs, curr_node, label, i, cols, rows):
     output_filename = path.join(output_dirs[curr_node][label], str(i) + ".png")
 
     filename = path.join(output_filename)
-    print("writing " + filename)
+    # print("writing " + filename)
     with open(filename, "wb") as h:
         w = png.Writer(cols, rows, greyscale=True)
         data_i = [
@@ -47,13 +47,15 @@ def write_data(output_dirs, curr_node, label, i, cols, rows):
         ]
         w.write(h, data_i)
 
-def write_dataset(labels, data, size, rows, cols, output_dir, num_nodes, percent_uniform):
-    
-    num_datapoints = len(labels)
-    
+def write_dataset(labels, data, size, rows, cols, output_dir, dataset, num_nodes, percent_uniform,
+                  num_datapoints):
+
+    if num_datapoints == -1:
+        num_datapoints = len(labels)
+
     # create output directories
     output_dirs = [
-        [path.join(output_dir, str(j), str(i))
+        [path.join(output_dir, str(j), dataset, str(i))
         for i in range(10)]
         for j in range(num_nodes)
     ]
@@ -82,9 +84,40 @@ def write_dataset(labels, data, size, rows, cols, output_dir, num_nodes, percent
         if i >= num_datapoints:
             break
 
+def write_testing_dataset(labels, data, size, rows, cols, output_dir, num_datapoints):
+
+    if num_datapoints == -1:
+        num_datapoints = len(labels)
+
+    # print(num_datapoints)
+
+    # create output directories
+    output_dirs = [
+        path.join(output_dir,f'{i}-test')
+        for i in range(10)
+    ]
+    for dir in output_dirs:
+        if not path.exists(dir):
+            os.makedirs(dir)
+
+    # write data
+    for (i, label) in enumerate(labels):
+        output_filename = path.join(output_dirs[label], str(i) + ".png")
+        # print("writing " + output_filename)
+        with open(output_filename, "wb") as h:
+            w = png.Writer(cols, rows, greyscale=True)
+            data_i = [
+                data[ (i*rows*cols + j*cols) : (i*rows*cols + (j+1)*cols) ]
+                for j in range(rows)
+            ]
+            w.write(h, data_i)
+
+        if i >= num_datapoints:
+            break
+
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
-        print("usage: {0} <input_path> <output_path> <num_nodes> <percent_uniform>".format(sys.argv[0]))
+    if len(sys.argv) != 6:
+        print("usage: {0} <input_path> <output_path> <num_nodes> <percent_uniform> <num_datapoints>".format(sys.argv[0]))
         sys.exit()
 
     input_path = sys.argv[1]
@@ -93,11 +126,21 @@ if __name__ == "__main__":
     num_nodes = int(sys.argv[3])
     percent_uniform = float(sys.argv[4])
 
+    num_datapoints = int(sys.argv[5])
+
     assert 0 < num_nodes
     assert 0 <= percent_uniform < 1
 
-    for dataset in ["training", "testing"]:
-        labels, data, size, rows, cols = read(dataset, input_path)
-        write_dataset(labels, data, size, rows, cols,
-                      path.join(output_path, dataset),
-                      num_nodes, percent_uniform)
+    # Different Training Dataset per Node
+    dataset = "training"
+
+    labels, data, size, rows, cols = read(dataset, input_path)
+    write_dataset(labels, data, size, rows, cols,
+                    output_path, dataset,
+                    num_nodes, percent_uniform, num_datapoints)
+    
+    dataset = "testing"
+
+    labels, data, size, rows, cols = read(dataset, input_path)
+    write_testing_dataset(labels, data, size, rows, cols, output_path,
+                          num_datapoints)

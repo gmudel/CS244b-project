@@ -20,3 +20,5 @@ echo "Shuffling dataset... "
 ./shuffle_dataset.sh
 
 # Remove intermediate files / non tar.gz files?
+echo "Removing temporary test files... "
+rm -r ./data/*-test*
