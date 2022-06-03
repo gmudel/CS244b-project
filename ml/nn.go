@@ -17,7 +17,7 @@ import (
 	"gocv.io/x/gocv"
 )
 
-func (model *SmallNN) Train(trainPath, testPath, savePath string) {
+func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainPath)
 	if e != nil {
 		panic(e)
@@ -61,7 +61,7 @@ func (model *SmallNN) Train(trainPath, testPath, savePath string) {
 	saveModel(model.net, savePath)
 }
 
-func (model *SmallNN) TrainBatch(trainLoader *imageloader.ImageLoader) (int, float32) {
+func (model *SimpleNN) TrainBatch(trainLoader *imageloader.ImageLoader) (int, float32) {
 
 	data, label := trainLoader.Minibatch()
 	numSamples := int(data.Shape()[0])
@@ -98,7 +98,7 @@ func MNISTLoader(fn string, vocab map[string]int) *imageloader.ImageLoader {
 	return loader
 }
 
-func (model *SmallNN) Test(loader *imageloader.ImageLoader) {
+func (model *SimpleNN) Test(loader *imageloader.ImageLoader) {
 	testLoss := float32(0)
 	correct := int64(0)
 	samples := 0

@@ -108,6 +108,7 @@ func (node *ZabNode) Run() {
 		node.phase = 0
 		node.reset = false
 		node.leaderId = (node.leaderId + 1) % node.numNodes
+		fmt.Println("leaderId is", node.leaderId)
 		// follower sends info to leader
 		if node.leaderId != node.id {
 			node.SendHelper(node.leaderId, ZabMessage{
