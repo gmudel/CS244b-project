@@ -376,7 +376,7 @@ func (node *ZabNode) heartbeat() {
 			sender, received = node.heartbeatNet.Receive()
 		}
 
-		time.Sleep(time.Second)
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
