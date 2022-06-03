@@ -165,7 +165,7 @@ func main() {
 				samples, trainLoss = mlp.TrainBatch(trainLoader)
 				totalSamples += samples
 				node.Run()
-				time.Sleep(10 * time.Millisecond)
+				time.Sleep(50 * time.Millisecond)
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)

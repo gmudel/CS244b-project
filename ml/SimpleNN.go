@@ -1,6 +1,7 @@
 package ml
 
 import (
+	"flads/util"
 	"sync"
 
 	torch "github.com/wangkuiyi/gotorch"
@@ -55,6 +56,13 @@ func (model *SimpleNN) addGradientsToBuffer() {
 		model.net.FC2.Bias.Grad(),
 		model.net.FC3.Bias.Grad(),
 	}
+
+	util.Logger.Println("W1 in buffer:", torch.Sum(mlpgrads.W1))
+	util.Logger.Println("W2 in buffer:", torch.Sum(mlpgrads.W2))
+	util.Logger.Println("W3 in buffer:", torch.Sum(mlpgrads.W3))
+	util.Logger.Println("B1 in buffer:", torch.Sum(mlpgrads.B1))
+	util.Logger.Println("B2 in buffer:", torch.Sum(mlpgrads.B2))
+	util.Logger.Println("B3 in buffer:", torch.Sum(mlpgrads.B3))
 	model.grads.GradBuffer = append(model.grads.GradBuffer, mlpgrads)
 }
 
@@ -65,6 +73,13 @@ func (model *SimpleNN) UpdateModel(incomingGradients Gradients) {
 	defer model.lock.Unlock()
 
 	for _, mlpgrad := range incomingGrads {
+		util.Logger.Println("W1 sum:", torch.Sum(mlpgrad.W1))
+		util.Logger.Println("W2 sum:", torch.Sum(mlpgrad.W2))
+		util.Logger.Println("W3 sum:", torch.Sum(mlpgrad.W3))
+		util.Logger.Println("B1 sum:", torch.Sum(mlpgrad.B1))
+		util.Logger.Println("B2 sum:", torch.Sum(mlpgrad.B2))
+		util.Logger.Println("B3 sum:", torch.Sum(mlpgrad.B3))
+
 		newW1 := torch.Sub(model.net.FC1.Weight, mlpgrad.W1, float32(model.lr))
 		newW2 := torch.Sub(model.net.FC2.Weight, mlpgrad.W2, float32(model.lr))
 		newW3 := torch.Sub(model.net.FC3.Weight, mlpgrad.W3, float32(model.lr))
@@ -87,10 +102,28 @@ func (model *SimpleNN) GetGradients() (ready bool, gradients Gradients) {
 	defer model.lock.Unlock()
 
 	if len(model.grads.GradBuffer) != 0 {
+		util.Logger.Println("length of gradbuffer", len(model.grads.GradBuffer))
 		GradBufferCopy := make([]MLPGrads, len(model.grads.GradBuffer))
 		copy(GradBufferCopy, model.grads.GradBuffer)
+		util.Logger.Println("length of gradbuffer copy", len(GradBufferCopy))
 
+		for _, mlpgrad := range model.grads.GradBuffer {
+			util.Logger.Println("gradbuffer W1 sum:", torch.Sum(mlpgrad.W1))
+			util.Logger.Println("gradbuffer W2 sum:", torch.Sum(mlpgrad.W2))
+			util.Logger.Println("gradbuffer W3 sum:", torch.Sum(mlpgrad.W3))
+			util.Logger.Println("gradbuffer B1 sum:", torch.Sum(mlpgrad.B1))
+			util.Logger.Println("gradbuffer B2 sum:", torch.Sum(mlpgrad.B2))
+			util.Logger.Println("gradbuffer B3 sum:", torch.Sum(mlpgrad.B3))
+		}
 		model.grads.GradBuffer = nil
+		for _, mlpgrad := range GradBufferCopy {
+			util.Logger.Println("sending W1 sum:", torch.Sum(mlpgrad.W1))
+			util.Logger.Println("sending W2 sum:", torch.Sum(mlpgrad.W2))
+			util.Logger.Println("sending W3 sum:", torch.Sum(mlpgrad.W3))
+			util.Logger.Println("sending B1 sum:", torch.Sum(mlpgrad.B1))
+			util.Logger.Println("sending B2 sum:", torch.Sum(mlpgrad.B2))
+			util.Logger.Println("sending B3 sum:", torch.Sum(mlpgrad.B3))
+		}
 		return true, Gradients{GradBuffer: GradBufferCopy}
 	} else {
 		return false, Gradients{}
