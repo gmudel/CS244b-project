@@ -117,8 +117,7 @@ func (network *NetworkClass[T]) Broadcast(msg T) error {
 		// if nodeId != network.nodeId {
 		err = network.Send(nodeId, msg)
 		if err != nil {
-			util.Logger.Println(err)
-			return err
+			util.Logger.Println("Error sending to ", nodeId, "error msg:", err)
 		}
 		// }
 	}

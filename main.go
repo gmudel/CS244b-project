@@ -72,7 +72,7 @@ func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int
 
 func main() {
 
-	numNodes := 2
+	numNodes := 3
 	curNodeId, err := strconv.Atoi(os.Args[1])
 	dssMode := ZAB
 	util.InitLogger(curNodeId)
@@ -83,7 +83,14 @@ func main() {
 	networkTable := map[int]string{ // nodeId : ipAddr
 		0: "localhost:7009",
 		1: "localhost:7010",
-		// 2: "localhost:7011",
+		2: "localhost:7011",
+		// 3: "localhost:7012",
+	}
+
+	heartbeatNetworkTable := map[int]string{ // nodeId : ipAddr
+		0: "localhost:8009",
+		1: "localhost:8010",
+		2: "localhost:8011",
 		// 3: "localhost:7012",
 	}
 
@@ -99,11 +106,12 @@ func main() {
 	var trainLoss float32
 
 	port := ":" + strings.Split(networkTable[curNodeId], ":")[1]
+	heartbeatPort := ":" + strings.Split(heartbeatNetworkTable[curNodeId], ":")[1]
 
 	if dssMode == ALGO1 {
 		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable)
 		node := &protocols.Algo1Node{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -121,7 +129,7 @@ func main() {
 	} else if dssMode == ALGO2 {
 		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
 		node := &protocols.Algo2Node{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -139,8 +147,9 @@ func main() {
 	} else if dssMode == ZAB {
 		fmt.Println("running zab")
 		net := setup[protocols.ZabMessage](numNodes, port, curNodeId, networkTable)
+		heartbeatNet := setup[protocols.ZabMessage](numNodes, heartbeatPort, curNodeId, heartbeatNetworkTable)
 		node := &protocols.ZabNode{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, heartbeatNet, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
