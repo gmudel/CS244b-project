@@ -12,14 +12,16 @@ import (
 type MsgType string
 
 const (
-	WRITE_REQUEST = "WRITE_REQUEST"
-	PROPOSAL      = "PROPOSAL"
-	ACK           = "ACK"
-	COMMIT        = "COMMIT"
-	HEARTBEAT     = "HEARTBEAT"
-	FOLLOWERINFO  = "FOLLOWERINFO"
-	NEWEPOCH      = "NEWEPOCH"
-	ACKEPOCH      = "ACKEPOCH"
+	WRITE_REQUEST   = "WRITE_REQUEST"
+	PROPOSAL        = "PROPOSAL"
+	ACK             = "ACK"
+	COMMIT          = "COMMIT"
+	FOLLOWERINFO    = "FOLLOWERINFO"
+	NEWEPOCH        = "NEWEPOCH"
+	ACKEPOCH        = "ACKEPOCH"
+	NEWLEADER       = "NEWLEADER"
+	ACKNEWLEADER    = "ACKNEWLEADER"
+	COMMITNEWLEADER = "COMMITNEWLEADER"
 )
 
 type ZabMessage struct {
@@ -53,12 +55,13 @@ type ZabNode struct {
 	leaderId        int
 	ml              ml.MLProcess
 	net             network.Network[ZabMessage]
-	heartbeatNet    network.Network[ZabMessage]
+	heartbeatNet    network.Network[int]
 	leaderCounter   int
 	proposalCounter int
+	commitEpoch     int
 	commitCounter   int
 	history         []ZabProposalAckCommit
-	pendingCommits  map[int]*ZabProposalAckCommit
+	pendingCommits  map[int]map[int]*ZabProposalAckCommit
 	ackCounter      []int
 	heartbeats      []time.Time
 	timeout         time.Duration
@@ -68,11 +71,12 @@ type ZabNode struct {
 	reset           bool
 
 	// leader
-	followerInfos     map[int]int
-	followerAckEpochs map[int]*ZabViewChange
+	followerInfos         map[int]int
+	followerAckEpochs     map[int]*ZabViewChange
+	followerAckNewLeaders map[int]bool
 }
 
-func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[ZabMessage], heartbeatNet network.Network[ZabMessage], numNodes int) {
+func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[ZabMessage], heartbeatNet network.Network[int], numNodes int) {
 	node.id = id
 	node.numNodes = numNodes
 	node.name = name
@@ -82,8 +86,9 @@ func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net netwo
 	node.heartbeatNet = heartbeatNet
 	node.leaderCounter = 0
 	node.proposalCounter = 0
+	node.commitEpoch = 0
 	node.commitCounter = 0
-	node.pendingCommits = make(map[int]*ZabProposalAckCommit)
+	node.pendingCommits = make(map[int]map[int]*ZabProposalAckCommit)
 	node.timeout = 5 * time.Second
 	node.heartbeats = make([]time.Time, numNodes)
 	node.phase = 3
@@ -92,24 +97,25 @@ func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net netwo
 	node.followerInfos = make(map[int]int)
 	node.reset = false
 	node.followerAckEpochs = make(map[int]*ZabViewChange)
-	for i, _ := range node.heartbeats {
-		node.heartbeats[i] = time.Now()
-	}
+	node.followerAckNewLeaders = make(map[int]bool)
 	go node.heartbeat()
 }
 
 func (node *ZabNode) Run() {
+	// TODO: Outer for received {} loop, with nested phase conditions
 	if node.reset {
+		fmt.Println("in reset")
 		node.phase = 0
 		node.reset = false
 		node.leaderId = (node.leaderId + 1) % node.numNodes
 		// follower sends info to leader
-		// TODO: Check if leader should send to itself
-		node.net.Send(node.leaderId, ZabMessage{
-			Epoch:   node.acceptedEpoch,
-			MsgType: FOLLOWERINFO,
-		})
-
+		if node.leaderId != node.id {
+			node.net.Send(node.leaderId, ZabMessage{
+				SenderId: node.id,
+				Epoch:    node.acceptedEpoch,
+				MsgType:  FOLLOWERINFO,
+			})
+		}
 		node.phase = 1
 	} else if node.phase == 1 {
 		zabMsg, received := node.net.Receive()
@@ -119,8 +125,24 @@ func (node *ZabNode) Run() {
 				node.handleFollowerInfo(&zabMsg)
 			case NEWEPOCH:
 				node.handleNewEpoch(&zabMsg)
+			case ACKEPOCH:
+				node.handleAckEpoch(&zabMsg)
 			default:
 				util.Logger.Println("got message type", zabMsg.MsgType, "in phase 1")
+			}
+			zabMsg, received = node.net.Receive()
+		}
+	} else if node.phase == 2 {
+		zabMsg, received := node.net.Receive()
+		for received {
+			switch zabMsg.MsgType {
+			case NEWLEADER:
+				fmt.Println("got new leader")
+				node.handleNewLeader(&zabMsg)
+			case ACKNEWLEADER:
+				node.handleAckNewLeader(&zabMsg)
+			case COMMITNEWLEADER:
+				node.handleCommitNewLeader(&zabMsg)
 			}
 			zabMsg, received = node.net.Receive()
 		}
@@ -155,8 +177,6 @@ func (node *ZabNode) Run() {
 				node.handleWriteRequest(&zabMsg.ZabProposalAckCommit)
 			case ACK:
 				node.handleAck(&zabMsg.ZabProposalAckCommit)
-			case HEARTBEAT:
-				node.handleHeartbeat(&zabMsg)
 			default:
 				util.Logger.Println("got message type", zabMsg.MsgType, "in phase 3")
 			}
@@ -173,15 +193,20 @@ func (node *ZabNode) Run() {
 
 // Phase 1
 func (node *ZabNode) handleNewEpoch(msg *ZabMessage) {
+	fmt.Println("in handleNewEpoch")
 	if msg.SenderId != node.leaderId {
+		fmt.Println("return early from handleNewEpoch")
 		return
 	}
 	// note acceptedEpoch should go to non-volatile mem
 	if msg.Epoch > node.acceptedEpoch {
+		fmt.Println("phase 2")
 		node.acceptedEpoch = msg.Epoch
 		maxEpoch, maxCounter := node.getLastZxid()
 		node.net.Send(node.leaderId, ZabMessage{
-			MsgType: ACKEPOCH,
+			SenderId: node.id,
+			MsgType:  ACKEPOCH,
+			Epoch:    msg.Epoch,
 			ZabViewChange: ZabViewChange{
 				History:      node.history,
 				CurrentEpoch: node.currentEpoch,
@@ -193,43 +218,66 @@ func (node *ZabNode) handleNewEpoch(msg *ZabMessage) {
 		})
 		node.phase = 2
 	} else if msg.Epoch < node.acceptedEpoch {
+		fmt.Println("phase 0")
+		node.phase = 0
+	}
+	fmt.Println("end handleNewEpoch")
+}
+
+// Phase 2
+func (node *ZabNode) handleNewLeader(msg *ZabMessage) {
+	if node.acceptedEpoch == msg.Epoch {
+		// begin atomic
+		// fmt.Println("begin atomic")
+		node.currentEpoch = msg.Epoch
+		// TODO: Supposed to accept the proposal, doing nothing for now
+
+		node.history = msg.History
+		// fmt.Println("end atomic")
+		// end atomic
+		node.net.Send(node.leaderId, ZabMessage{
+			SenderId: node.id,
+			MsgType:  ACKNEWLEADER,
+			ZabViewChange: ZabViewChange{
+				CurrentEpoch: msg.Epoch,
+				History:      node.history,
+			},
+		})
+	} else {
 		node.phase = 0
 	}
 }
 
-func (node *ZabNode) handleAckEpoch(msg *ZabMessage) {
-	node.followerAckEpochs[msg.SenderId] = &msg.ZabViewChange
-
-	if len(node.followerAckEpochs) == len(node.followerInfos) {
-		maxCurrEpoch := -1
-		maxEpoch := -1
-		maxCounter := -1
-		maxNodeId := -1
-		for nodeId, followerAckEpoch := range node.followerAckEpochs {
-			ce := followerAckEpoch.CurrentEpoch
-			e := followerAckEpoch.LastZxid.Epoch
-			c := followerAckEpoch.LastZxid.Counter
-			if ce > maxCurrEpoch || (ce == maxCurrEpoch && e > maxEpoch) || (ce == maxCurrEpoch && e == maxEpoch && c > maxCounter) {
-				maxCurrEpoch = ce
-				maxEpoch = e
-				maxCounter = c
-				maxNodeId = nodeId
+func (node *ZabNode) handleCommitNewLeader(msg *ZabMessage) {
+	// TODO: this is inefficient
+	// Might be buggy but check again
+	for {
+		found := false
+		for _, local_zpac := range node.history {
+			if local_zpac.Counter == node.commitCounter+1 && local_zpac.Epoch == node.commitEpoch {
+				found = true
+				node.commit(&local_zpac)
+				break
 			}
 		}
-		node.history = node.followerAckEpochs[maxNodeId].History
-		node.phase = 2
-	} else if len(node.followerAckEpochs) > len(node.followerInfos) {
-		panic("received more ackepochs than followerInfos")
+		if !found {
+			node.commitEpoch++
+			node.commitCounter = 0
+			break
+		}
 	}
+	// Go to phase 3
+	fmt.Println("go to phase 3")
+	go node.heartbeat()
+	node.phase = 3
 }
-
-// Phase 2
 
 // Phase 3
 func (node *ZabNode) processPendingCommits() {
-	msg, ok := node.pendingCommits[node.commitCounter+1]
-	if ok && msg.Epoch == node.currentEpoch {
+	msg, ok := node.getFromPendingCommit(node.commitEpoch, node.commitCounter)
+	for ok && msg.Epoch == node.currentEpoch {
 		node.commit(msg)
+		msg, ok = node.getFromPendingCommit(node.commitEpoch, node.commitCounter)
 	}
 }
 
@@ -250,9 +298,10 @@ func (node *ZabNode) handleProposal(p *ZabProposalAckCommit) {
 }
 
 func (node *ZabNode) handleCommit(c *ZabProposalAckCommit) {
-	if c.Epoch > node.currentEpoch || c.Counter > node.commitCounter+1 {
+	if c.Epoch > node.commitEpoch || (c.Epoch == node.commitEpoch && c.Counter > node.commitCounter+1) {
 		// wait
-		node.pendingCommits[c.Counter] = c
+		fmt.Println("handle commit wait")
+		node.setFromPendingCommit(c.Epoch, c.Counter, c)
 	} else {
 		node.commit(c)
 	}
@@ -260,30 +309,28 @@ func (node *ZabNode) handleCommit(c *ZabProposalAckCommit) {
 
 func (node *ZabNode) commit(c *ZabProposalAckCommit) {
 	node.ml.UpdateModel(c.Grads)
+	node.commitCounter++
 }
 
 // Heartbeat
 func (node *ZabNode) heartbeat() {
+	for i, _ := range node.heartbeats {
+		node.heartbeats[i] = time.Now()
+	}
 	for {
 		if node.id != node.leaderId {
 			fmt.Println("in follower")
-			node.heartbeatNet.Send(node.leaderId, ZabMessage{
-				SenderId: node.id,
-				MsgType:  HEARTBEAT,
-			})
+			node.heartbeatNet.Send(node.leaderId, node.id)
 			util.Logger.Println("sent heartbeat to leader at", time.Now())
 			if time.Time.Sub(time.Now(), node.heartbeats[node.leaderId]) >= node.timeout {
 				// go to phase 0
-				panic("follower didn't receive heartbeat")
+				// panic("follower didn't receive heartbeat")
 				node.reset = true
 				return
 			}
 		} else {
 			fmt.Println("in leader")
-			node.heartbeatNet.Broadcast(ZabMessage{
-				SenderId: node.id,
-				MsgType:  HEARTBEAT,
-			})
+			node.heartbeatNet.Broadcast(node.id)
 			count := 0
 			for nodeId, t := range node.heartbeats {
 				if time.Time.Sub(time.Now(), t) < node.timeout {
@@ -294,33 +341,33 @@ func (node *ZabNode) heartbeat() {
 			}
 			if count <= node.numNodes/2 {
 				// go to phase 0
-				panic("leader didn't receive enough heartbeats")
+				fmt.Println("leader didn't receive enough heartbeats")
 				node.reset = true
 				return
 			}
 		}
 
-		zabMsg, received := node.heartbeatNet.Receive()
+		sender, received := node.heartbeatNet.Receive()
 		for received {
-			node.handleHeartbeat(&zabMsg)
-			zabMsg, received = node.heartbeatNet.Receive()
+			node.handleHeartbeat(sender)
+			sender, received = node.heartbeatNet.Receive()
 		}
 
 		time.Sleep(time.Second)
 	}
 }
 
-func (node *ZabNode) handleHeartbeat(msg *ZabMessage) {
+func (node *ZabNode) handleHeartbeat(sender int) {
 	if node.id != node.leaderId {
-		if msg.SenderId == node.leaderId {
+		if sender == node.leaderId {
 			node.heartbeats[node.leaderId] = time.Now()
 		} else {
 			util.Logger.Println("follower got heartbeat from non-leader")
 		}
 	} else {
 		t := time.Now()
-		node.heartbeats[msg.SenderId] = t
-		util.Logger.Println("received heartbeat from", msg.SenderId, "at", t)
+		node.heartbeats[sender] = t
+		util.Logger.Println("received heartbeat from", sender, "at", t)
 
 	}
 }
@@ -332,29 +379,92 @@ func (node *ZabNode) handleHeartbeat(msg *ZabMessage) {
 // Phase 1
 func (node *ZabNode) handleFollowerInfo(msg *ZabMessage) {
 	// may need to handle this in phase 3 as well
-	if len(node.followerInfos) > node.numNodes/2+1 {
+	if len(node.followerInfos) > node.numNodes/2 {
 		return
 	}
 	node.followerInfos[msg.SenderId] = msg.Epoch
-	if len(node.followerInfos) == node.numNodes/2+1 {
+	fmt.Println("length of followerinfos:", len(node.followerInfos))
+	if len(node.followerInfos) == node.numNodes/2 {
+		fmt.Println("here")
 		maxEpoch := 0
 		for _, epoch := range node.followerInfos {
 			if epoch > maxEpoch {
 				maxEpoch = epoch
 			}
 		}
+		fmt.Println("maxepoch", maxEpoch)
 		newEpoch := maxEpoch + 1
 		for nodeId, _ := range node.followerInfos {
-			node.net.Send(nodeId, ZabMessage{
-				Epoch:   newEpoch,
-				MsgType: NEWEPOCH,
+			err := node.net.Send(nodeId, ZabMessage{
+				SenderId: node.id,
+				Epoch:    newEpoch,
+				MsgType:  NEWEPOCH,
 			})
+			if err != nil {
+				fmt.Println("error in handleFollowerInfo", err)
+			}
+			fmt.Println("sent to", nodeId)
 		}
 
 	}
 }
 
+func (node *ZabNode) handleAckEpoch(msg *ZabMessage) {
+	fmt.Println("in handleAckEpoch")
+	node.followerAckEpochs[msg.SenderId] = &msg.ZabViewChange
+
+	if len(node.followerAckEpochs) == len(node.followerInfos) {
+		maxCurrEpoch := -1
+		maxEpoch := -1
+		maxCounter := -1
+		maxNodeId := -1
+		for nodeId, followerAckEpoch := range node.followerAckEpochs {
+			ce := followerAckEpoch.CurrentEpoch
+			e := followerAckEpoch.LastZxid.Epoch
+			c := followerAckEpoch.LastZxid.Counter
+			if ce > maxCurrEpoch || (ce == maxCurrEpoch && e > maxEpoch) || (ce == maxCurrEpoch && e == maxEpoch && c > maxCounter) {
+				maxCurrEpoch = ce
+				maxEpoch = e
+				maxCounter = c
+				maxNodeId = nodeId
+			}
+		}
+		node.history = node.followerAckEpochs[maxNodeId].History
+		node.phase = 2
+		for nodeId, _ := range node.followerInfos {
+			fmt.Println("sending new leader to", nodeId)
+			node.net.Send(nodeId, ZabMessage{
+				SenderId: node.id,
+				Epoch:    msg.Epoch,
+				MsgType:  NEWLEADER,
+				ZabViewChange: ZabViewChange{
+					History: node.history,
+				},
+			})
+		}
+		fmt.Println("phase 2")
+	} else if len(node.followerAckEpochs) > len(node.followerInfos) {
+		panic("received more ackepochs than followerInfos")
+	}
+}
+
 // Phase 2
+func (node *ZabNode) handleAckNewLeader(msg *ZabMessage) {
+	if len(node.followerAckNewLeaders) > node.numNodes/2 {
+		return
+	}
+	node.followerAckNewLeaders[msg.SenderId] = true
+	if len(node.followerAckNewLeaders) == node.numNodes/2 {
+		node.net.BroadcastToRest(ZabMessage{
+			SenderId: node.id,
+			MsgType:  COMMITNEWLEADER,
+		})
+	}
+	// Go to phase 3
+	node.phase = 3
+	go node.heartbeat()
+	fmt.Println("Entering phase 3")
+}
 
 // Phase 3
 func (node *ZabNode) handleWriteRequest(msg *ZabProposalAckCommit) {
@@ -390,6 +500,26 @@ func (node *ZabNode) handleAck(msg *ZabProposalAckCommit) {
 /****************************************************************************************************/
 /***************************************Helper*******************************************************/
 /****************************************************************************************************/
+
+func (node *ZabNode) getFromPendingCommit(epoch int, counter int) (*ZabProposalAckCommit, bool) {
+	nextMap, ok := node.pendingCommits[epoch]
+	if !ok {
+		return nil, ok
+	}
+	val, ok2 := nextMap[counter]
+	if !ok2 {
+		return nil, ok2
+	}
+	return val, true
+}
+
+func (node *ZabNode) setFromPendingCommit(epoch int, counter int, val *ZabProposalAckCommit) {
+	_, ok := node.pendingCommits[epoch]
+	if !ok {
+		node.pendingCommits[epoch] = make(map[int]*ZabProposalAckCommit)
+	}
+	node.pendingCommits[epoch][counter] = val
+}
 
 func (node *ZabNode) getLastZxid() (int, int) {
 	maxEpoch := -1

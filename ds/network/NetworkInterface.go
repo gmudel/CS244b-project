@@ -15,6 +15,8 @@ type Network[T any] interface {
 
 	Broadcast(msg T) error
 
+	BroadcastToRest(msg T) error
+
 	Multicast(nodeIds []int, msg T) error
 
 	Receive() (msg T, ok bool)

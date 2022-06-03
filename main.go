@@ -60,9 +60,9 @@ func makeModel() (ml.MLProcess, string, string, string) {
 	return model, *trainTar, *testTar, *save
 }
 
-func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int]string) network.Network[T] {
+func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int]string, protocol string) network.Network[T] {
 	net := network.NetworkClass[T]{}
-	net.Initialize(curNodeId, port, make([]T, 0), networkTable)
+	net.Initialize(curNodeId, port, make([]T, 0), networkTable, protocol)
 	err := net.Listen()
 	if err != nil {
 		panic("Network not able to listen")
@@ -91,7 +91,7 @@ func main() {
 		0: "localhost:8009",
 		1: "localhost:8010",
 		2: "localhost:8011",
-		// 3: "localhost:7012",
+		// 3: "localhost:8012",
 	}
 
 	mlp, trainPath, testPath, _ := makeModel()
@@ -109,7 +109,7 @@ func main() {
 	heartbeatPort := ":" + strings.Split(heartbeatNetworkTable[curNodeId], ":")[1]
 
 	if dssMode == ALGO1 {
-		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable)
+		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable, "tcp")
 		node := &protocols.Algo1Node{}
 		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
@@ -127,7 +127,7 @@ func main() {
 			mlp.Test(testLoader)
 		}
 	} else if dssMode == ALGO2 {
-		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
+		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable, "tcp")
 		node := &protocols.Algo2Node{}
 		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
@@ -146,8 +146,8 @@ func main() {
 		}
 	} else if dssMode == ZAB {
 		fmt.Println("running zab")
-		net := setup[protocols.ZabMessage](numNodes, port, curNodeId, networkTable)
-		heartbeatNet := setup[protocols.ZabMessage](numNodes, heartbeatPort, curNodeId, heartbeatNetworkTable)
+		net := setup[protocols.ZabMessage](numNodes, port, curNodeId, networkTable, "tcp")
+		heartbeatNet := setup[int](numNodes, heartbeatPort, curNodeId, heartbeatNetworkTable, "udp")
 		node := &protocols.ZabNode{}
 		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, heartbeatNet, numNodes)
 		for epoch := 0; epoch < 10; epoch++ {
@@ -159,7 +159,7 @@ func main() {
 				samples, trainLoss = mlp.TrainBatch(trainLoader)
 				totalSamples += samples
 				node.Run()
-				// time.Sleep(time.Second)
+				time.Sleep(50 * time.Millisecond)
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
