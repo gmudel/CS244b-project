@@ -107,8 +107,23 @@ func (network *NetworkClass[T]) Send(nodeId int, msg T) error {
 	if network.protocol == "udp" && err != nil {
 		fmt.Println("sent to", address)
 	}
+
 	// util.Logger.Println("In Send(), sent msg", msg)
+	network.logBytesSent(msg)
+
 	return err
+}
+
+func (network *NetworkClass[T]) logBytesSent(msg T) {
+
+	var byteBuffer bytes.Buffer
+	encoder := gob.NewEncoder(&byteBuffer)
+	err := encoder.Encode(msg)
+
+	if err == nil {
+		nBytes := len(byteBuffer.Bytes())
+		util.PlotLogger.Printf("Bytes: %d\n", nBytes)
+	}
 }
 
 // Unoptimized broadcast -- simple calls send for every node in the

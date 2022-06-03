@@ -1,6 +1,8 @@
 package ml
 
 import (
+	"flads/util"
+
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -56,7 +58,7 @@ func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 		}
 		throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 		log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
-		model.Test(testLoader)
+		model.Test(testLoader, util.PlotLogger, epoch)
 	}
 	saveModel(model.net, savePath)
 }
@@ -98,7 +100,7 @@ func MNISTLoader(fn string, vocab map[string]int) *imageloader.ImageLoader {
 	return loader
 }
 
-func (model *SimpleNN) Test(loader *imageloader.ImageLoader) {
+func (model *SimpleNN) Test(loader *imageloader.ImageLoader, plotLogger *log.Logger, epochNum int) {
 	testLoss := float32(0)
 	correct := int64(0)
 	samples := 0
@@ -115,6 +117,9 @@ func (model *SimpleNN) Test(loader *imageloader.ImageLoader) {
 	}
 	log.Printf("Test average loss: %.4f, Accuracy: %.2f%%\n",
 		testLoss/float32(samples), 100.0*float32(correct)/float32(samples))
+
+	util.PlotLogger.Printf("Epoch %d, Accuracy: %.2f%%\n",
+		epochNum, 100.0*float32(correct)/float32(samples))
 }
 
 func saveModel(model *models.MLPModule, modelFn string) {

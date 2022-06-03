@@ -129,7 +129,7 @@ if __name__ == "__main__":
     num_datapoints = int(sys.argv[5])
 
     assert 0 < num_nodes
-    assert 0 <= percent_uniform < 1
+    assert 0 <= percent_uniform <= 1
 
     # Different Training Dataset per Node
     dataset = "training"
@@ -138,9 +138,11 @@ if __name__ == "__main__":
     write_dataset(labels, data, size, rows, cols,
                     output_path, dataset,
                     num_nodes, percent_uniform, num_datapoints)
-    
+
+    '''    
     dataset = "testing"
 
     labels, data, size, rows, cols = read(dataset, input_path)
     write_testing_dataset(labels, data, size, rows, cols, output_path,
                           num_datapoints)
+    '''
