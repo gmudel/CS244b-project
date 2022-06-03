@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -55,14 +54,14 @@ func makeModel() (ml.MLProcess, string, string, string) {
 	// 	os.Exit(1)
 	// }
 
-	trainCmd.Parse(os.Args[2:])
+	// trainCmd.Parse(os.Args[2:])
 	model := ml.MakeSmallNN(*lr, *epochs, device)
 	return model, *trainTar, *testTar, *save
 }
 
-func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int]string) network.Network[T] {
+func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int]string, protocol string) network.Network[T] {
 	net := network.NetworkClass[T]{}
-	net.Initialize(curNodeId, port, make([]T, 0), networkTable)
+	net.Initialize(curNodeId, port, make([]T, 0), networkTable, protocol)
 	err := net.Listen()
 	if err != nil {
 		panic("Network not able to listen")
@@ -72,11 +71,18 @@ func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int
 
 func main() {
 
-	numNodes := 3
-	curNodeId, err := strconv.Atoi(os.Args[1])
+	numNodesPtr := flag.Int("numNodes", 3, "Number of nodes in the network")
+	curNodeIdPtr := flag.Int("id", -1, "Current node id")
+	leaderIdPtr := flag.Int("leader", -1, "leaderId")
+	flag.Parse()
+
+	numNodes := *numNodesPtr
+	curNodeId := *curNodeIdPtr
+	leaderId := *leaderIdPtr
 	dssMode := ZAB
+
 	util.InitLogger(curNodeId)
-	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
+	if curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
 	}
 
@@ -91,7 +97,7 @@ func main() {
 		0: "localhost:8009",
 		1: "localhost:8010",
 		2: "localhost:8011",
-		// 3: "localhost:7012",
+		// 3: "localhost:8012",
 	}
 
 	mlp, trainPath, testPath, _ := makeModel()
@@ -109,9 +115,9 @@ func main() {
 	heartbeatPort := ":" + strings.Split(heartbeatNetworkTable[curNodeId], ":")[1]
 
 	if dssMode == ALGO1 {
-		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable)
+		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable, "tcp")
 		node := &protocols.Algo1Node{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes, 0)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -127,9 +133,9 @@ func main() {
 			mlp.Test(testLoader)
 		}
 	} else if dssMode == ALGO2 {
-		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable)
+		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable, "tcp")
 		node := &protocols.Algo2Node{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes, 0)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -146,10 +152,10 @@ func main() {
 		}
 	} else if dssMode == ZAB {
 		fmt.Println("running zab")
-		net := setup[protocols.ZabMessage](numNodes, port, curNodeId, networkTable)
-		heartbeatNet := setup[protocols.ZabMessage](numNodes, heartbeatPort, curNodeId, heartbeatNetworkTable)
+		net := setup[protocols.ZabMessage](numNodes, port, curNodeId, networkTable, "tcp")
+		heartbeatNet := setup[int](numNodes, heartbeatPort, curNodeId, heartbeatNetworkTable, "udp")
 		node := &protocols.ZabNode{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, heartbeatNet, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, heartbeatNet, numNodes, leaderId)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -159,7 +165,7 @@ func main() {
 				samples, trainLoss = mlp.TrainBatch(trainLoader)
 				totalSamples += samples
 				node.Run()
-				// time.Sleep(time.Second)
+				time.Sleep(50 * time.Millisecond)
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)

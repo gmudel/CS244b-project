@@ -23,6 +23,12 @@ func (net *DumbNetwork[T]) Broadcast(msg T) {
 	}
 }
 
+func (net *DumbNetwork[T]) BroadcastToRest(msg T) {
+	for i := 0; i < net.numNodes; i++ {
+		net.internalQueue[i] = append(net.internalQueue[i], msg)
+	}
+}
+
 func (net *DumbNetwork[T]) Receive(nodeId int) (valid bool, msg T) {
 	if len(net.internalQueue[nodeId]) == 0 {
 		var t T

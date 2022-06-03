@@ -41,7 +41,7 @@ func createNodesFromTable[T any](networkTable map[int]string) map[int]*NetworkCl
 		port := ":" + strings.Split(address, ":")[1]
 
 		newNode := NetworkClass[T]{}
-		newNode.Initialize(nodeId, port, make([]T, 0), networkTable)
+		newNode.Initialize(nodeId, port, make([]T, 0), networkTable, "tcp")
 
 		nodeTable[nodeId] = &newNode
 	}

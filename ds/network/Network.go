@@ -10,12 +10,11 @@ package network
 //   - Test on AWS
 
 import (
+	"bytes"
 	"encoding/gob"
 	"flads/util"
 	"fmt"
 	"net"
-
-	"github.com/cenkalti/backoff/v4"
 )
 
 // Network Type
@@ -25,21 +24,27 @@ type NetworkClass[T any] struct {
 	queue  []T
 
 	nodeIdTable map[int]string
+	protocol    string
 }
 
 func (network *NetworkClass[T]) Initialize(nodeId int, port string,
-	queue []T, nodeIdTable map[int]string) {
+	queue []T, nodeIdTable map[int]string, protocol string) {
 
 	network.nodeId = nodeId
 	network.port = port
 	network.queue = queue
 	network.nodeIdTable = nodeIdTable
-
+	network.protocol = protocol
 }
 
 // Create node and listen on port
 func (network *NetworkClass[T]) Listen() error {
-	return network.ListenOnPort(network.port)
+	if network.protocol == "tcp" {
+		return network.ListenOnPort(network.port)
+	} else {
+		go network.listenForeverUDP()
+		return nil
+	}
 }
 
 func (network *NetworkClass[T]) ListenOnPort(port string) error {
@@ -54,6 +59,11 @@ func (network *NetworkClass[T]) ListenOnPort(port string) error {
 
 	return nil
 
+}
+
+func (network *NetworkClass[T]) listenForeverUDP() error {
+	go network.handleConnectionUDP()
+	return nil
 }
 
 func (network *NetworkClass[T]) listenForever(listener net.Listener) {
@@ -73,7 +83,7 @@ func (network *NetworkClass[T]) listenForever(listener net.Listener) {
 	}
 }
 
-// Creates TCP connection to the address mapped to, encodes the
+// Creates connection to the address mapped to, encodes the
 //   message, then closes the connection
 func (network *NetworkClass[T]) Send(nodeId int, msg T) error {
 
@@ -84,28 +94,21 @@ func (network *NetworkClass[T]) Send(nodeId int, msg T) error {
 			network.nodeId, nodeId)
 	}
 
-	// Initialize TCP connection with target
-	backoff.Retry(func() error {
-		conn, err := net.Dial("tcp", address)
-		// defer conn.Close()
-		if err != nil {
-			// if this is a temporary error, then retry
-			if terr, ok := err.(TemporaryError); ok && terr.Temporary() {
-				return err
-			}
-		}
-		// if we were successful, or there was a non-temporary error, fail
-		// Encode the message over the connection
-		encoder := gob.NewEncoder(conn)
-		err = encoder.Encode(msg) // Might want encoder.Encode(msg)
-		if err != nil {
-			util.Logger.Println("error encoding msg")
-		}
-		return nil
-	}, backoff.NewExponentialBackOff())
-	return nil
+	// Initialize connection with target
+	conn, err := net.Dial(network.protocol, address)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
+	// Encode the message over the connection
+	encoder := gob.NewEncoder(conn)
+	err = encoder.Encode(msg) // Might want encoder.Encode(msg)
+	if network.protocol == "udp" && err != nil {
+		fmt.Println("sent to", address)
+	}
 	// util.Logger.Println("In Send(), sent msg", msg)
+	return err
 }
 
 // Unoptimized broadcast -- simple calls send for every node in the
@@ -120,6 +123,21 @@ func (network *NetworkClass[T]) Broadcast(msg T) error {
 			util.Logger.Println("Error sending to ", nodeId, "error msg:", err)
 		}
 		// }
+	}
+
+	return err
+}
+
+func (network *NetworkClass[T]) BroadcastToRest(msg T) error {
+
+	var err error
+	for nodeId, _ := range network.nodeIdTable {
+		if nodeId != network.nodeId {
+			err = network.Send(nodeId, msg)
+			if err != nil {
+				util.Logger.Println("Error sending to ", nodeId, "error msg:", err)
+			}
+		}
 	}
 
 	return err
@@ -160,20 +178,48 @@ func (network *NetworkClass[T]) Receive() (msg T, ok bool) {
 //   The network class does not check that the message is well-formed,
 //   and will add it to the queue for downstream processing
 func (network *NetworkClass[T]) handleConnection(conn net.Conn) error {
+	defer conn.Close()
 
 	decoder := gob.NewDecoder(conn)
 	var msg T
 	err := decoder.Decode(&msg)
-
-	conn.Close()
 
 	if err == nil {
 		// TODO: Locking
 		network.queue = append(network.queue, msg)
 		// util.Logger.Println("msg contains ", msg)
 	} else {
-		util.Logger.Println("Error in handleConnection: ", err)
+		util.Logger.Println("Error in handleConnection:", err)
 	}
 
 	return err
+}
+
+func (network *NetworkClass[T]) handleConnectionUDP() error {
+	for {
+		var msg T
+		inputBytes := make([]byte, 1024)
+
+		pc, err := net.ListenPacket("udp", network.port)
+		if err != nil {
+			fmt.Println(err)
+			return fmt.Errorf("error calling ListenPacket: %v ", err)
+		}
+
+		length, _, err := pc.ReadFrom(inputBytes)
+
+		if err != nil {
+			fmt.Println("err calling ReadFrom", err)
+		}
+		buffer := bytes.NewBuffer(inputBytes[:length])
+		decoder := gob.NewDecoder(buffer)
+
+		err = decoder.Decode(&msg)
+		if err == nil {
+			network.queue = append(network.queue, msg)
+		} else {
+			fmt.Println("err decoding", err, length)
+		}
+		pc.Close()
+	}
 }
