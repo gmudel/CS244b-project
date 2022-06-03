@@ -156,7 +156,7 @@ func (node *ZabNode) Run() {
 			case ACK:
 				node.handleAck(&zabMsg.ZabProposalAckCommit)
 			case HEARTBEAT:
-				panic("got heartbeat in main network")
+				node.handleHeartbeat(&zabMsg)
 			default:
 				util.Logger.Println("got message type", zabMsg.MsgType, "in phase 3")
 			}
