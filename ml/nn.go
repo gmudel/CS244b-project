@@ -17,7 +17,7 @@ import (
 	"gocv.io/x/gocv"
 )
 
-func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
+func (model *SmallNN) Train(trainPath, testPath, savePath string) {
 	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainPath)
 	if e != nil {
 		panic(e)
@@ -61,7 +61,7 @@ func (model *SimpleNN) Train(trainPath, testPath, savePath string) {
 	saveModel(model.net, savePath)
 }
 
-func (model *SimpleNN) TrainBatch(trainLoader *imageloader.ImageLoader) (int, float32) {
+func (model *SmallNN) TrainBatch(trainLoader *imageloader.ImageLoader) (int, float32) {
 
 	data, label := trainLoader.Minibatch()
 	numSamples := int(data.Shape()[0])
@@ -98,7 +98,7 @@ func MNISTLoader(fn string, vocab map[string]int) *imageloader.ImageLoader {
 	return loader
 }
 
-func (model *SimpleNN) Test(loader *imageloader.ImageLoader) {
+func (model *SmallNN) Test(loader *imageloader.ImageLoader) {
 	testLoss := float32(0)
 	correct := int64(0)
 	samples := 0
@@ -173,7 +173,7 @@ func predictFile(fn string, m *models.MLPModule) {
 	fmt.Println(m.Forward(n).Argmax().Item())
 }
 
-// func (model *SimpleNN) sumModelWeights(otherModel *SimpleNN) {
+// func (model *SmallNN) sumModelWeights(otherModel *SmallNN) {
 // 	model.net.FC1.Weight.SetData(torch.Add(model.net.FC1.Weight, otherModel.net.FC1.Weight, 1.))
 // 	model.net.FC2.Weight.SetData(torch.Add(model.net.FC2.Weight, otherModel.net.FC2.Weight, 1.))
 // 	model.net.FC3.Weight.SetData(torch.Add(model.net.FC3.Weight, otherModel.net.FC3.Weight, 1.))
@@ -182,7 +182,7 @@ func predictFile(fn string, m *models.MLPModule) {
 // 	model.net.FC3.Bias.SetData(torch.Add(model.net.FC3.Bias, otherModel.net.FC3.Bias, 1.))
 // }
 
-// func (model *SimpleNN) divideModelWeights(n float32) {
+// func (model *SmallNN) divideModelWeights(n float32) {
 // 	model.net.FC1.Weight.SetData(torch.Div(model.net.FC1.Weight, otherModel.net.FC1.Weight, 1.))
 // 	model.net.FC2.Weight.SetData(torch.Add(model.net.FC2.Weight, otherModel.net.FC2.Weight, 1.))
 // 	model.net.FC3.Weight.SetData(torch.Add(model.net.FC3.Weight, otherModel.net.FC3.Weight, 1.))

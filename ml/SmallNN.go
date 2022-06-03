@@ -20,9 +20,9 @@ type SmallNN struct {
 
 func smallMLP() *models.MLPModule {
 	r := &models.MLPModule{
-		FC1: nn.Linear(28*28, 1, true),
-		FC2: nn.Linear(1, 1, true),
-		FC3: nn.Linear(1, 10, true)}
+		FC1: nn.Linear(28*28, 128, true),
+		FC2: nn.Linear(128, 128, true),
+		FC3: nn.Linear(128, 10, true)}
 	r.Init(r)
 	return r
 }
@@ -55,8 +55,9 @@ func (model *SmallNN) ZeroGrad() {
 }
 
 func (model *SmallNN) addGradientsToBuffer() {
-	// model.lock.Lock()
-	// defer model.lock.Unlock()
+	model.lock.Lock()
+	defer model.lock.Unlock()
+
 	mlpgrads := MLPGrads{
 		model.net.FC1.Weight.Grad(),
 		model.net.FC2.Weight.Grad(),
@@ -65,7 +66,42 @@ func (model *SmallNN) addGradientsToBuffer() {
 		model.net.FC2.Bias.Grad(),
 		model.net.FC3.Bias.Grad(),
 	}
-	model.grads.GradBuffer = append(model.grads.GradBuffer, mlpgrads)
+
+	// hack to copy
+	W1Shape := model.net.FC1.Weight.Grad().Shape()
+	W1Copy := torch.Full(W1Shape, 0, true)
+	W1Copy = torch.Add(W1Copy, mlpgrads.W1, 1.)
+
+	W2Shape := model.net.FC2.Weight.Grad().Shape()
+	W2Copy := torch.Full(W2Shape, 0, true)
+	W2Copy = torch.Add(W2Copy, mlpgrads.W2, 1.)
+
+	W3Shape := model.net.FC3.Weight.Grad().Shape()
+	W3Copy := torch.Full(W3Shape, 0, true)
+	W3Copy = torch.Add(W3Copy, mlpgrads.W3, 1.)
+
+	B1Shape := model.net.FC1.Bias.Grad().Shape()
+	B1Copy := torch.Full(B1Shape, 0, true)
+	B1Copy = torch.Add(B1Copy, mlpgrads.B1, 1.)
+
+	B2Shape := model.net.FC2.Bias.Grad().Shape()
+	B2Copy := torch.Full(B2Shape, 0, true)
+	B2Copy = torch.Add(B2Copy, mlpgrads.B2, 1.)
+
+	B3Shape := model.net.FC3.Bias.Grad().Shape()
+	B3Copy := torch.Full(B3Shape, 0, true)
+	B3Copy = torch.Add(B3Copy, mlpgrads.B3, 1.)
+
+	mlpgradsCopy := MLPGrads{
+		W1Copy,
+		W2Copy,
+		W3Copy,
+		B1Copy,
+		B2Copy,
+		B3Copy,
+	}
+
+	model.grads.GradBuffer = append(model.grads.GradBuffer, mlpgradsCopy)
 }
 
 func (model *SmallNN) UpdateModel(incomingGradients Gradients) {

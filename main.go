@@ -55,7 +55,7 @@ func makeModel() (ml.MLProcess, string, string, string) {
 	// }
 
 	// trainCmd.Parse(os.Args[2:])
-	model := ml.MakeSimpleNN(*lr, *epochs, device)
+	model := ml.MakeSmallNN(*lr, *epochs, device)
 	return model, *trainTar, *testTar, *save
 }
 
@@ -165,7 +165,7 @@ func main() {
 				samples, trainLoss = mlp.TrainBatch(trainLoader)
 				totalSamples += samples
 				node.Run()
-				time.Sleep(50 * time.Millisecond)
+				// time.Sleep(50 * time.Millisecond)
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)

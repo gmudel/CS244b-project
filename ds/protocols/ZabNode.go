@@ -7,6 +7,8 @@ import (
 	"flads/util"
 	"fmt"
 	"time"
+
+	"github.com/wangkuiyi/gotorch/vision/imageloader"
 )
 
 type MsgType string
@@ -288,7 +290,7 @@ func (node *ZabNode) handleCommitNewLeader(msg *ZabMessage) {
 	}
 	// Go to phase 3
 	fmt.Println("go to phase 3")
-	go node.heartbeat()
+	// go node.heartbeat()
 	node.phase = 3
 }
 
@@ -323,8 +325,9 @@ func (node *ZabNode) handleProposal(p *ZabMessage) {
 func (node *ZabNode) handleCommit(c *ZabProposalAckCommit) {
 	if c.Epoch > node.commitEpoch || (c.Epoch == node.commitEpoch && c.Counter > node.commitCounter+1) {
 		// wait
-		fmt.Printf("handle commit wait, c.e: %d node.ce %d c.c %d node.cc %d\n", c.Epoch, node.commitEpoch, c.Counter, node.commitCounter)
-		node.setFromPendingCommit(c.Epoch, c.Counter, c)
+		// fmt.Printf("handle commit wait, c.e: %d node.ce %d c.c %d node.cc %d\n", c.Epoch, node.commitEpoch, c.Counter, node.commitCounter)
+		// node.setFromPendingCommit(c.Epoch, c.Counter, c)
+		node.commit(c)
 	} else {
 		node.commit(c)
 	}
@@ -333,6 +336,12 @@ func (node *ZabNode) handleCommit(c *ZabProposalAckCommit) {
 func (node *ZabNode) commit(c *ZabProposalAckCommit) {
 	node.ml.UpdateModel(c.Grads)
 	node.commitCounter++
+
+	trainPath := "./data/mnist_png/mnist_png_training_shuffled.tar.gz"
+	testPath := "./data/mnist_png/mnist_png_testing_shuffled.tar.gz"
+	vocab, _ := imageloader.BuildLabelVocabularyFromTgz(trainPath)
+	testLoader := ml.MNISTLoader(testPath, vocab)
+	node.ml.Test(testLoader)
 	// trainBatch.train()
 }
 
@@ -488,7 +497,7 @@ func (node *ZabNode) handleAckNewLeader(msg *ZabMessage) {
 		// Go to phase 3
 		node.phase = 3
 		node.currentEpoch = msg.CurrentEpoch
-		go node.heartbeat()
+		// go node.heartbeat()
 		node.followerAckEpochs = make(map[int]*ZabViewChange)
 		fmt.Println("Entering phase 3")
 	} else {
