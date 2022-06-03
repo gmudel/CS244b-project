@@ -76,11 +76,11 @@ type ZabNode struct {
 	followerAckNewLeaders map[int]bool
 }
 
-func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[ZabMessage], heartbeatNet network.Network[int], numNodes int) {
+func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net network.Network[ZabMessage], heartbeatNet network.Network[int], numNodes int, leaderId int) {
 	node.id = id
 	node.numNodes = numNodes
 	node.name = name
-	node.leaderId = 0
+	node.leaderId = leaderId
 	node.ml = mlp
 	node.net = net
 	node.heartbeatNet = heartbeatNet
@@ -91,14 +91,14 @@ func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net netwo
 	node.pendingCommits = make(map[int]map[int]*ZabProposalAckCommit)
 	node.timeout = 5 * time.Second
 	node.heartbeats = make([]time.Time, numNodes)
-	node.phase = 3
+	node.phase = 0
 	node.acceptedEpoch = 0
 	node.currentEpoch = 0
 	node.followerInfos = make(map[int]int)
-	node.reset = false
+	node.reset = true
 	node.followerAckEpochs = make(map[int]*ZabViewChange)
 	node.followerAckNewLeaders = make(map[int]bool)
-	go node.heartbeat()
+	// go node.heartbeat()
 }
 
 func (node *ZabNode) Run() {
@@ -177,6 +177,10 @@ func (node *ZabNode) Run() {
 				node.handleWriteRequest(&zabMsg.ZabProposalAckCommit)
 			case ACK:
 				node.handleAck(&zabMsg.ZabProposalAckCommit)
+			case FOLLOWERINFO:
+				node.handleIncomingFollower(&zabMsg)
+			case ACKNEWLEADER:
+				node.handleIncomingFollowerAck(&zabMsg)
 			default:
 				util.Logger.Println("got message type", zabMsg.MsgType, "in phase 3")
 			}
@@ -319,7 +323,6 @@ func (node *ZabNode) heartbeat() {
 	}
 	for {
 		if node.id != node.leaderId {
-			fmt.Println("in follower")
 			node.heartbeatNet.Send(node.leaderId, node.id)
 			util.Logger.Println("sent heartbeat to leader at", time.Now())
 			if time.Time.Sub(time.Now(), node.heartbeats[node.leaderId]) >= node.timeout {
@@ -329,7 +332,6 @@ func (node *ZabNode) heartbeat() {
 				return
 			}
 		} else {
-			fmt.Println("in leader")
 			node.heartbeatNet.Broadcast(node.id)
 			count := 0
 			for nodeId, t := range node.heartbeats {
@@ -495,6 +497,29 @@ func (node *ZabNode) handleAck(msg *ZabProposalAckCommit) {
 	}
 	// TODO: check if we want to commit ourselves
 	// node.commit(msg)
+}
+
+func (node *ZabNode) handleIncomingFollower(msg *ZabMessage) {
+	node.net.Send(msg.SenderId, ZabMessage{
+		SenderId: node.id,
+		MsgType:  NEWEPOCH,
+		Epoch:    node.currentEpoch,
+	})
+	node.net.Send(msg.SenderId, ZabMessage{
+		SenderId: node.id,
+		MsgType:  NEWLEADER,
+		Epoch:    node.currentEpoch,
+		ZabViewChange: ZabViewChange{
+			History: node.history,
+		},
+	})
+}
+
+func (node *ZabNode) handleIncomingFollowerAck(msg *ZabMessage) {
+	node.net.Send(msg.SenderId, ZabMessage{
+		SenderId: node.id,
+		MsgType:  COMMITNEWLEADER,
+	})
 }
 
 /****************************************************************************************************/

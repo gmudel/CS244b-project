@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -55,7 +54,7 @@ func makeModel() (ml.MLProcess, string, string, string) {
 	// 	os.Exit(1)
 	// }
 
-	trainCmd.Parse(os.Args[2:])
+	// trainCmd.Parse(os.Args[2:])
 	model := ml.MakeSmallNN(*lr, *epochs, device)
 	return model, *trainTar, *testTar, *save
 }
@@ -72,11 +71,18 @@ func setup[T any](numNodes int, port string, curNodeId int, networkTable map[int
 
 func main() {
 
-	numNodes := 3
-	curNodeId, err := strconv.Atoi(os.Args[1])
+	numNodesPtr := flag.Int("numNodes", 3, "Number of nodes in the network")
+	curNodeIdPtr := flag.Int("id", -1, "Current node id")
+	leaderIdPtr := flag.Int("leader", -1, "leaderId")
+	flag.Parse()
+
+	numNodes := *numNodesPtr
+	curNodeId := *curNodeIdPtr
+	leaderId := *leaderIdPtr
 	dssMode := ZAB
+
 	util.InitLogger(curNodeId)
-	if err != nil || curNodeId >= numNodes || curNodeId < 0 {
+	if curNodeId >= numNodes || curNodeId < 0 {
 		panic("Cannot get the node id or node id out or range")
 	}
 
@@ -111,7 +117,7 @@ func main() {
 	if dssMode == ALGO1 {
 		net := setup[protocols.Algo1Message](numNodes, port, curNodeId, networkTable, "tcp")
 		node := &protocols.Algo1Node{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes, 0)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -129,7 +135,7 @@ func main() {
 	} else if dssMode == ALGO2 {
 		net := setup[protocols.Algo2Message](numNodes, port, curNodeId, networkTable, "tcp")
 		node := &protocols.Algo2Node{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, net, numNodes, 0)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0
@@ -149,7 +155,7 @@ func main() {
 		net := setup[protocols.ZabMessage](numNodes, port, curNodeId, networkTable, "tcp")
 		heartbeatNet := setup[int](numNodes, heartbeatPort, curNodeId, heartbeatNetworkTable, "udp")
 		node := &protocols.ZabNode{}
-		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, heartbeatNet, numNodes)
+		node.Initialize(curNodeId, strconv.Itoa(curNodeId), mlp, net, heartbeatNet, numNodes, leaderId)
 		for epoch := 0; epoch < 10; epoch++ {
 			startTime := time.Now()
 			totalSamples = 0

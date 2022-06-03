@@ -216,7 +216,6 @@ func (network *NetworkClass[T]) handleConnectionUDP() error {
 
 		err = decoder.Decode(&msg)
 		if err == nil {
-			fmt.Println("got something from node", msg)
 			network.queue = append(network.queue, msg)
 		} else {
 			fmt.Println("err decoding", err, length)
