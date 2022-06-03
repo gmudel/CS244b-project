@@ -5,7 +5,7 @@ import "encoding/gob"
 // Network Interface
 type Network[T any] interface {
 	Initialize(nodeId int, port string,
-		queue []T, nodeIdTable map[int]string)
+		queue []T, nodeIdTable map[int]string, protocol string)
 
 	Listen() error
 
@@ -23,4 +23,8 @@ type Network[T any] interface {
 type serializable interface {
 	gob.GobEncoder
 	gob.GobDecoder
+}
+
+type TemporaryError interface {
+	Temporary() bool
 }
