@@ -48,7 +48,7 @@ func makeModel(trainDir string, nodeId int, useWholeDataset bool) (ml.MLProcess,
 	fmt.Println(trainPath)
 	trainCmd := flag.NewFlagSet("train", flag.ExitOnError)
 	trainTar := trainCmd.String("data", trainPath, "data tarball")
-	testTar := trainCmd.String("test", "./data/mnist_png/mnist_png_testing_shuffled.tar.gz", "data tarball")
+	testTar := trainCmd.String("test", "./test_data/mnist_png_testing_shuffled.tar.gz", "data tarball")
 	save := trainCmd.String("save", "./ml/mnist_model.gob", "the model file")
 
 	// predictCmd := flag.NewFlagSet("predict", flag.ExitOnError)
