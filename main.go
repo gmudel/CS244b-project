@@ -42,7 +42,7 @@ func makeModel(trainDir string, nodeId int) (ml.MLProcess, string, string, strin
 
 	trainCmd := flag.NewFlagSet("train", flag.ExitOnError)
 	trainTar := trainCmd.String("data", trainPath, "data tarball")
-	testTar := trainCmd.String("test", "./test_data/mnist_png_testing_shuffled.tar.gz", "data tarball")
+	testTar := trainCmd.String("test", "./data/mnist_png/mnist_png_testing_shuffled.tar.gz", "data tarball")
 	save := trainCmd.String("save", "./ml/mnist_model.gob", "the model file")
 
 	// predictCmd := flag.NewFlagSet("predict", flag.ExitOnError)
@@ -92,18 +92,11 @@ func main() {
 		panic("Cannot get the node id or node id out or range")
 	}
 
-	networkTable := map[int]string{ // nodeId : ipAddr
-		0: "localhost:7009",
-		1: "localhost:7010",
-		2: "localhost:7011",
-		// 3: "localhost:7012",
-	}
-
-	heartbeatNetworkTable := map[int]string{ // nodeId : ipAddr
-		0: "localhost:8009",
-		1: "localhost:8010",
-		2: "localhost:8011",
-		// 3: "localhost:8012",
+	networkTable := make(map[int]string)
+	heartbeatNetworkTable := make(map[int]string)
+	for i := 0; i < numNodes; i++ {
+		networkTable[i] = fmt.Sprintf("localhost:%d", 7000+curNodeId)
+		heartbeatNetworkTable[i] = fmt.Sprintf("localhost:%d", 8000+curNodeId)
 	}
 
 	mlp, trainPath, testPath, _ := makeModel(*trainDirPtr, curNodeId)
