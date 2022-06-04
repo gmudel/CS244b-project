@@ -227,7 +227,7 @@ func (node *ZabNode) handleNewEpoch(msg *ZabMessage) {
 // Phase 2
 func (node *ZabNode) handleNewLeader(msg *ZabMessage) {
 	if node.acceptedEpoch == msg.Epoch {
-		fmt.Println("handle new leader", node.acceptedEpoch, msg.Epoch)
+		fmt.Printf("handle new leader %d accEpoch: %d msgEpoch: %d \n", msg.SenderId, node.acceptedEpoch, msg.Epoch)
 		// begin atomic
 		// fmt.Println("begin atomic")
 		node.currentEpoch = msg.Epoch
