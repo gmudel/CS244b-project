@@ -7,8 +7,6 @@ import (
 	"flads/util"
 	"fmt"
 	"time"
-
-	"github.com/wangkuiyi/gotorch/vision/imageloader"
 )
 
 type MsgType string
@@ -100,7 +98,6 @@ func (node *ZabNode) Initialize(id int, name string, mlp ml.MLProcess, net netwo
 	node.reset = true
 	node.followerAckEpochs = make(map[int]*ZabViewChange)
 	node.followerAckNewLeaders = make(map[int]bool)
-	// go node.heartbeat()
 }
 
 func (node *ZabNode) Run() {
@@ -290,7 +287,7 @@ func (node *ZabNode) handleCommitNewLeader(msg *ZabMessage) {
 	}
 	// Go to phase 3
 	fmt.Println("go to phase 3")
-	// go node.heartbeat()
+	go node.heartbeat()
 	node.phase = 3
 }
 
@@ -337,12 +334,11 @@ func (node *ZabNode) commit(c *ZabProposalAckCommit) {
 	node.ml.UpdateModel(c.Grads)
 	node.commitCounter++
 
-	trainPath := "./data/mnist_png/mnist_png_training_shuffled.tar.gz"
-	testPath := "./data/mnist_png/mnist_png_testing_shuffled.tar.gz"
-	vocab, _ := imageloader.BuildLabelVocabularyFromTgz(trainPath)
-	testLoader := ml.MNISTLoader(testPath, vocab)
-	node.ml.Test(testLoader, util.PlotLogger, -1)
-	// trainBatch.train()
+	// trainPath := "./data/mnist_png/mnist_png_training_shuffled.tar.gz"
+	// testPath := "./data/mnist_png/mnist_png_testing_shuffled.tar.gz"
+	// vocab, _ := imageloader.BuildLabelVocabularyFromTgz(trainPath)
+	// testLoader := ml.MNISTLoader(testPath, vocab)
+	// node.ml.Test(testLoader, util.PlotLogger, -1)
 }
 
 // Heartbeat
@@ -497,7 +493,7 @@ func (node *ZabNode) handleAckNewLeader(msg *ZabMessage) {
 		// Go to phase 3
 		node.phase = 3
 		node.currentEpoch = msg.CurrentEpoch
-		// go node.heartbeat()
+		go node.heartbeat()
 		node.followerAckEpochs = make(map[int]*ZabViewChange)
 		fmt.Println("Entering phase 3")
 	} else {

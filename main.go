@@ -40,7 +40,7 @@ func makeModel(trainDir string, nodeId int, useWholeDataset bool) (ml.MLProcess,
 
 	var trainPath string
 	if useWholeDataset {
-		trainPath = "./test_data/mnist_png_training_shuffled.tar.gz"
+		trainPath = "./data/mnist_png/mnist_png_training_shuffled.tar.gz"
 	} else {
 		trainPath = fmt.Sprintf("./%s/%d/mnist_png_training_shuffled.tar.gz", trainDir, nodeId)
 	}
@@ -48,7 +48,7 @@ func makeModel(trainDir string, nodeId int, useWholeDataset bool) (ml.MLProcess,
 	fmt.Println(trainPath)
 	trainCmd := flag.NewFlagSet("train", flag.ExitOnError)
 	trainTar := trainCmd.String("data", trainPath, "data tarball")
-	testTar := trainCmd.String("test", "./test_data/mnist_png_testing_shuffled.tar.gz", "data tarball")
+	testTar := trainCmd.String("test", "./data/mnist_png/mnist_png_testing_shuffled.tar.gz", "data tarball")
 	save := trainCmd.String("save", "./ml/mnist_model.gob", "the model file")
 
 	// predictCmd := flag.NewFlagSet("predict", flag.ExitOnError)
@@ -99,14 +99,14 @@ func main() {
 	}
 
 	useWholeDataset := false
-	if *trainDirPtr == "all_data" {
+	if *trainDirPtr == "data" {
 		useWholeDataset = true
 	}
 	networkTable := make(map[int]string)
 	heartbeatNetworkTable := make(map[int]string)
 	for i := 0; i < numNodes; i++ {
-		networkTable[i] = fmt.Sprintf("localhost:%d", 7000+curNodeId)
-		heartbeatNetworkTable[i] = fmt.Sprintf("localhost:%d", 8000+curNodeId)
+		networkTable[i] = fmt.Sprintf("localhost:%d", 7001+i)
+		heartbeatNetworkTable[i] = fmt.Sprintf("localhost:%d", 8001+i)
 	}
 
 	mlp, trainPath, testPath, _ := makeModel(*trainDirPtr, curNodeId, useWholeDataset)
@@ -174,7 +174,7 @@ func main() {
 				samples, trainLoss = mlp.TrainBatch(trainLoader)
 				totalSamples += samples
 				node.Run()
-				// time.Sleep(50 * time.Millisecond)
+				time.Sleep(50 * time.Millisecond)
 			}
 			throughput := float64(totalSamples) / time.Since(startTime).Seconds()
 			log.Printf("Train Epoch: %d, Loss: %.4f, throughput: %f samples/sec", epoch, trainLoss, throughput)
