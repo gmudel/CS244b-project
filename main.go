@@ -27,7 +27,7 @@ const (
 
 var device torch.Device
 
-func makeModel(trainDir string, nodeId int) (ml.MLProcess, string, string, string) {
+func makeModel(trainDir string, nodeId int, useWholeDataset bool) (ml.MLProcess, string, string, string) {
 	if torch.IsCUDAAvailable() {
 		log.Println("CUDA is valid")
 		device = torch.NewDevice("cuda")
@@ -38,8 +38,14 @@ func makeModel(trainDir string, nodeId int) (ml.MLProcess, string, string, strin
 
 	initializer.ManualSeed(1)
 
-	trainPath := fmt.Sprintf("./%s/%d/mnist_png_training_shuffled.tar.gz", trainDir, nodeId)
+	var trainPath string
+	if useWholeDataset {
+		trainPath = "./test_data/mnist_png_training_shuffled.tar.gz"
+	} else {
+		trainPath = fmt.Sprintf("./%s/%d/mnist_png_training_shuffled.tar.gz", trainDir, nodeId)
+	}
 
+	fmt.Println(trainPath)
 	trainCmd := flag.NewFlagSet("train", flag.ExitOnError)
 	trainTar := trainCmd.String("data", trainPath, "data tarball")
 	testTar := trainCmd.String("test", "./data/mnist_png/mnist_png_testing_shuffled.tar.gz", "data tarball")
@@ -92,6 +98,10 @@ func main() {
 		panic("Cannot get the node id or node id out or range")
 	}
 
+	useWholeDataset := false
+	if *trainDirPtr == "all_data" {
+		useWholeDataset = true
+	}
 	networkTable := make(map[int]string)
 	heartbeatNetworkTable := make(map[int]string)
 	for i := 0; i < numNodes; i++ {
@@ -99,7 +109,7 @@ func main() {
 		heartbeatNetworkTable[i] = fmt.Sprintf("localhost:%d", 8000+curNodeId)
 	}
 
-	mlp, trainPath, testPath, _ := makeModel(*trainDirPtr, curNodeId)
+	mlp, trainPath, testPath, _ := makeModel(*trainDirPtr, curNodeId, useWholeDataset)
 	util.Logger.Println("made model and began training")
 	vocab, e := imageloader.BuildLabelVocabularyFromTgz(trainPath)
 	if e != nil {
